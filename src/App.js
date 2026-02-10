@@ -9,22 +9,19 @@ import {
   Trash2, UploadCloud, Image as ImageIcon, Snowflake,
   Palette, Sliders, CloudRain, Flower, Activity, Video,
   MessageSquare, ShieldAlert, Ban, Stamp, HardDrive, Download,
-  Radio, RefreshCw, Sparkles, Type
+  Radio, RefreshCw, Sparkles, Type, RotateCcw
 } from 'lucide-react';
 
 /**
- * ANIMATIONBG - ВЕРСИЯ 9.0 (ULTIMATE PERSONALIZATION & SECRET ACCESS)
+ * ANIMATIONBG - ВЕРСИЯ 9.1 (FIXED PERSISTENCE & CATALOG RESET)
  * * Промени:
- * - Скрит админ вход (достъпен само чрез #/admin-secret-login-2026).
- * - Пълна персонализация: име на сайт, качване на лого (Base64).
- * - Разширена цветова схема с Custom Color Picker.
- * - Сезонни ефекти: Сняг, Дъжд, Сакура, Светулки.
- * - Детайлна настройка на воден знак (позиция, текст, прозрачност).
- * - Пълна localStorage персистентност.
+ * - Поправена персистентност: localStorage е единствен източник на истина за видеата.
+ * - DEFAULT_VIDEOS се ползват само при първото стартиране.
+ * - Добавен бутон "Нулиране на каталога" в Admin Settings.
+ * - Оптимизирано триене на видео с обновяване на localStorage.
  */
 
 // --- ДАННИ (ТОРЕНТИ) ---
-// TODO: Replace with API fetch from backend
 const DEFAULT_VIDEOS = [
   {
     id: '1',
@@ -241,7 +238,7 @@ const TorrentPlayer = memo(({ video, onClose, settings }) => {
 export default function App() {
   const [view, setView] = useState('home'); 
   const [currentUser, setCurrentUser] = useState(null);
-  const [videos, setVideos] = useState(DEFAULT_VIDEOS);
+  const [videos, setVideos] = useState([]); // Списъкът се зарежда динамично
   const [activeVideo, setActiveVideo] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activityLog, setActivityLog] = useState([]);
@@ -260,19 +257,40 @@ export default function App() {
     watermarkOpacity: 20
   });
 
-  // INITIAL LOAD & ROUTING
+  // INITIAL LOAD & PERSISTENCE LOGIC
   useEffect(() => {
-    // Session Check
-    if (localStorage.getItem('adminSession') === 'true') setCurrentUser(MOCK_ADMIN);
+    // 1. Session persistence
+    if (localStorage.getItem('adminSession') === 'true') {
+      setCurrentUser(MOCK_ADMIN);
+    }
 
-    // Load Data
+    // 2. Video persistence logic
     const savedVideos = localStorage.getItem('savedVideos');
-    if (savedVideos) setVideos(JSON.parse(savedVideos));
+    if (savedVideos) {
+      // Имаме запазени данни, използваме ги
+      try {
+        setVideos(JSON.parse(savedVideos));
+      } catch (e) {
+        console.error("Грешка при парсване на localStorage видеа");
+        setVideos(DEFAULT_VIDEOS);
+      }
+    } else {
+      // ПЪРВО ЗАРЕЖДАНЕ: Зареждаме по подразбиране и запазваме в localStorage
+      setVideos(DEFAULT_VIDEOS);
+      localStorage.setItem('savedVideos', JSON.stringify(DEFAULT_VIDEOS));
+    }
 
+    // 3. Settings persistence
     const savedSettings = localStorage.getItem('siteSettings');
-    if (savedSettings) setSettings(JSON.parse(savedSettings));
+    if (savedSettings) {
+      try {
+        setSettings(JSON.parse(savedSettings));
+      } catch (e) {
+        console.error("Грешка при зареждане на настройки");
+      }
+    }
 
-    // Secret URL Routing
+    // 4. Secret Routing
     const handleHash = () => {
       if (window.location.hash === '#/admin-secret-login-2026' && !currentUser) setView('login');
       else if (window.location.hash.includes('admin') && currentUser) setView('admin');
@@ -318,8 +336,24 @@ export default function App() {
       setVideos(updated);
       localStorage.setItem('savedVideos', JSON.stringify(updated));
       addLog(`Добавен торент: ${data.title}`, "success");
-      alert("Добавено!");
+      alert("Добавено успешно!");
     } catch (err) { alert("Грешка при запазване."); }
+  };
+
+  const handleDeleteVideo = (id) => {
+    const filtered = videos.filter(vid => vid.id !== id);
+    setVideos(filtered);
+    localStorage.setItem('savedVideos', JSON.stringify(filtered));
+    addLog(`Изтрито видео с ID: ${id}`, "warning");
+  };
+
+  const handleResetCatalog = () => {
+    if (window.confirm("⚠️ СИГУРНИ ЛИ СТЕ? Това ще изтрие всички добавени от вас филми и ще възстанови само първоначалния списък.")) {
+      localStorage.setItem('savedVideos', JSON.stringify(DEFAULT_VIDEOS));
+      setVideos(DEFAULT_VIDEOS);
+      addLog("Каталогът беше нулиран до настройки по подразбиране", "warning");
+      alert("Каталогът е нулиран.");
+    }
   };
 
   const handleLogoUpload = (e) => {
@@ -380,13 +414,46 @@ export default function App() {
                        <button className="col-span-2 text-white font-black py-4 rounded-xl hover:brightness-110 transition-all" style={{ backgroundColor: settings.primaryColor }}>ПУБЛИКУВАЙ</button>
                     </form>
                  </div>
+
+                 <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl">
+                    <h3 className="text-xl font-bold text-white mb-6">Текущо съдържание</h3>
+                    <div className="space-y-3">
+                       {videos.map(v => (
+                         <div key={v.id} className="flex items-center justify-between p-4 bg-slate-950 rounded-xl border border-slate-800 group hover:border-slate-600 transition-colors">
+                            <div className="flex items-center gap-4">
+                               <img src={v.thumbnail} className="w-10 h-14 object-cover rounded" alt=""/>
+                               <div>
+                                  <div className="text-white font-bold">{v.title}</div>
+                                  <div className="text-xs text-slate-500">{v.year}</div>
+                               </div>
+                            </div>
+                            <button onClick={() => handleDeleteVideo(v.id)} className="text-slate-600 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
+                         </div>
+                       ))}
+                       {videos.length === 0 && <p className="text-slate-500 text-center py-4">Каталогът е празен.</p>}
+                    </div>
+                 </div>
               </div>
             )}
 
             {adminTab === 'settings' && (
                <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-2xl space-y-12 text-white">
-                  {/* Site Identity */}
+                  {/* Catalog Management */}
                   <section>
+                     <h2 className="text-xl font-black mb-6 flex items-center gap-3"><HardDrive style={{ color: settings.primaryColor }}/> Поддръжка на данни</h2>
+                     <div className="p-6 bg-slate-950 border border-slate-800 rounded-2xl">
+                        <p className="text-sm text-slate-400 mb-6">Ако имате проблеми с показването на филмите или искате да изчистите всичко и да започнете на чисто:</p>
+                        <button 
+                           onClick={handleResetCatalog}
+                           className="flex items-center gap-2 px-6 py-3 bg-red-900/20 text-red-500 border border-red-900 hover:bg-red-900 hover:text-white rounded-xl font-bold transition-all"
+                        >
+                           <RotateCcw size={18}/> Нулиране на каталога (Factory Reset)
+                        </button>
+                     </div>
+                  </section>
+
+                  {/* Site Identity */}
+                  <section className="pt-8 border-t border-slate-800">
                      <h2 className="text-xl font-black mb-6 flex items-center gap-3"><Globe style={{ color: settings.primaryColor }}/> Идентичност</h2>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-4">
@@ -408,7 +475,7 @@ export default function App() {
                      </div>
                   </section>
 
-                  {/* Colors & Themes */}
+                  {/* Themes */}
                   <section className="pt-8 border-t border-slate-800">
                      <h2 className="text-xl font-black mb-6 flex items-center gap-3"><Palette style={{ color: settings.primaryColor }}/> Цветова схема</h2>
                      <div className="flex flex-wrap gap-4 items-center">
@@ -445,7 +512,7 @@ export default function App() {
 
                   {/* Watermark */}
                   <section className="pt-8 border-t border-slate-800">
-                     <h2 className="text-xl font-black mb-6 flex items-center gap-3"><Stamp style={{ color: settings.primaryColor }}/> Воден знак (Watermark)</h2>
+                     <h2 className="text-xl font-black mb-6 flex items-center gap-3"><Stamp style={{ color: settings.primaryColor }}/> Воден знак</h2>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-6">
                            <div className="flex items-center gap-3">
@@ -562,7 +629,7 @@ export default function App() {
          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
             <div>
                <h3 className="text-2xl font-black text-white tracking-tighter mb-2">
-                  {settings.useLogo && settings.logoUrl ? <img src={settings.logoUrl} className="h-6" /> : settings.siteName}
+                  {settings.useLogo && settings.logoUrl ? <img src={settings.logoUrl} className="h-6" alt="Footer Logo" /> : settings.siteName}
                </h3>
                <p className="text-slate-600 text-sm">P2P Стрийминг Платформа &copy; 2026</p>
             </div>
