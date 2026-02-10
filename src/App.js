@@ -9,30 +9,31 @@ import {
   Trash2, UploadCloud, Image as ImageIcon, Snowflake,
   Palette, Sliders, CloudRain, Flower, Activity, Video,
   MessageSquare, ShieldAlert, Ban, Stamp, HardDrive, Download,
-  Radio, RefreshCw, Sparkles, Type, RotateCcw, Layout
+  Radio, RefreshCw, Sparkles, Type, RotateCcw, Layout, Mail
 } from 'lucide-react';
 
 /**
- * ANIMATIONBG - ВЕРСИЯ 9.3 (CLEAN UI - NO P2P REFERENCES)
+ * ANIMATIONBG - ВЕРСИЯ 10.0 (EMBED PLAYER & CONTACTS)
  * * Промени:
- * - Премахнати всички препратки към "P2P Streaming" в текстовете по подразбиране.
- * - Обновени DEFAULT_TEXTS за по-професионално излъчване.
- * - Текстът за зареждане в плейъра е променен на "Свързване с източника...".
+ * - Заменен WebTorrent с EmbedPlayer (iFrame).
+ * - Добавена нова страница "Контакти" с mailto форма.
+ * - Добавен DMCA Disclaimer.
+ * - Премахнати всички P2P/Torrent референции.
+ * - Подобрена форма за добавяне на филми в Админ панела.
  */
 
 const DEFAULT_VIDEOS = [
   {
     id: '1',
-    title: 'Пепеляшка (БГ Аудио) - Класика',
+    title: 'Frozen (2013) - Анимация',
     thumbnail: 'https://images.unsplash.com/photo-1580136608260-42d1c4aa0153?q=80&w=1000&auto=format&fit=crop',
-    magnetLink: 'magnet:?xt=urn:btih:08ada5a7a6183aae1e09d831df6748d566095a10&dn=Sintel', 
-    duration: '1:15:00',
-    year: 1950,
+    embedUrl: 'https://vidsrc.me/embed/movie/tt2294629',
+    duration: '1:42:00',
+    year: 2013,
     views: 4500,
     likes: 320,
-    description: 'Класическата история за Пепеляшка, озвучена на български език. Магия, тикви и изгубена пантофка.',
-    tags: ['Classic', 'Family'],
-    trailerUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4'
+    description: 'Магична история за две сестри и вечната зима.',
+    tags: ['Animation', 'Family']
   }
 ];
 
@@ -51,30 +52,10 @@ const DEFAULT_TEXTS = {
   adminTabTexts: 'Текстове',
   adminTabLogs: 'Логове',
   playerLiveBadge: 'СТРИЙМ НА ЖИВО',
-  playerLoading: 'Свързване с източника...',
-  playerPeers: 'Източници',
-  playerBuffered: 'Буферирано'
+  playerLoading: 'Зареждане...'
 };
 
 const MOCK_ADMIN = { id: 'a1', name: 'Администратор', role: 'admin' };
-
-const loadWebTorrentGlobal = (callback) => {
-  if (window.WebTorrent) return callback();
-  if (document.getElementById('webtorrent-script')) {
-    const checkInterval = setInterval(() => {
-      if (window.WebTorrent) {
-        clearInterval(checkInterval);
-        callback();
-      }
-    }, 100);
-    return;
-  }
-  const script = document.createElement('script');
-  script.id = 'webtorrent-script';
-  script.src = "https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js";
-  script.onload = callback;
-  document.head.appendChild(script);
-};
 
 // --- ВИЗУАЛНИ ЕФЕКТИ (СЕЗОНИ) ---
 const VisualEffectLayer = ({ type }) => {
@@ -116,127 +97,56 @@ const VisualEffectLayer = ({ type }) => {
   );
 };
 
-// --- ТОРЕНТ ПЛЕЙЪР ---
-const TorrentPlayer = memo(({ video, onClose, settings }) => {
-  const videoRef = useRef(null);
-  const [status, setStatus] = useState({ loading: true, peers: 0, progress: 0, speed: 0, error: null, ready: false });
-  const [playing, setPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [showControls, setShowControls] = useState(true);
-  const isMounted = useRef(true);
-
-  const formatTime = (t) => {
-    if (isNaN(t)) return "0:00";
-    const m = Math.floor(t / 60);
-    const s = Math.floor(t % 60);
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  };
-
-  useEffect(() => {
-    isMounted.current = true;
-    let client = null;
-    const startTorrent = () => {
-      try {
-        if (!window.WebTorrent) return;
-        client = new window.WebTorrent();
-        client.add(video.magnetLink, (torrent) => {
-          if (!isMounted.current) { client.destroy(); return; }
-          const file = torrent.files.find(f => f.name.endsWith('.mp4') || f.name.endsWith('.mkv') || f.name.endsWith('.webm'));
-          if (file && videoRef.current) {
-            file.renderTo(videoRef.current, { autoplay: false, muted: false }, (err) => {
-              if (!err && isMounted.current && videoRef.current) videoRef.current.play().catch(() => {});
-            });
-          }
-          torrent.on('download', () => {
-            if (isMounted.current) {
-              setStatus(prev => ({
-                ...prev, loading: false, peers: torrent.numPeers, progress: Math.round(torrent.progress * 100),
-                speed: Math.round(torrent.downloadSpeed / 1024 / 1024 * 100) / 100, error: null
-              }));
-            }
-          });
-        });
-        client.on('error', (err) => isMounted.current && setStatus(s => ({ ...s, error: err.message })));
-      } catch (e) { isMounted.current && setStatus(s => ({ ...s, error: "Грешка при стрийминг" })); }
-    };
-    loadWebTorrentGlobal(startTorrent);
-    return () => { isMounted.current = false; if (client) client.destroy(); };
-  }, [video]);
-
-  const togglePlay = () => {
-    if (!videoRef.current) return;
-    if (videoRef.current.paused) videoRef.current.play().then(() => setPlaying(true)).catch(() => {});
-    else { videoRef.current.pause(); setPlaying(false); }
-  };
-
+// --- EMBED ПЛЕЙЪР (IFRAME) ---
+const EmbedPlayer = memo(({ video, onClose, settings }) => {
   const watermarkPosClasses = {
-    'top-right': 'top-20 right-8', 'top-left': 'top-20 left-8', 'bottom-right': 'bottom-24 right-8', 'bottom-left': 'bottom-24 left-8'
+    'top-right': 'top-20 right-8',
+    'top-left': 'top-20 left-8',
+    'bottom-right': 'bottom-24 right-8',
+    'bottom-left': 'bottom-24 left-8'
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-sans select-none"
-         onMouseMove={() => setShowControls(true)} onContextMenu={(e) => e.preventDefault()}>
-      
+    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+      {/* Watermark Overlay */}
       {settings.watermarkEnabled && (
-        <div className={`absolute ${watermarkPosClasses[settings.watermarkPosition] || 'top-20 right-8'} z-[70] pointer-events-none select-none`}
-             style={{ opacity: settings.watermarkOpacity / 100 }}>
-          <span className="text-white font-black text-2xl uppercase tracking-widest drop-shadow-lg">{settings.watermarkText}</span>
+        <div 
+          className={`absolute ${watermarkPosClasses[settings.watermarkPosition] || 'top-20 right-8'} z-[70] pointer-events-none select-none`}
+          style={{ opacity: settings.watermarkOpacity / 100 }}
+        >
+          <span className="text-white font-black text-2xl uppercase tracking-widest drop-shadow-lg">
+            {settings.watermarkText}
+          </span>
         </div>
       )}
 
-      <div className={`absolute top-0 left-0 right-0 p-6 z-[60] flex justify-between items-start bg-gradient-to-b from-black/90 to-transparent transition-opacity duration-500 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-        <div>
-          <h2 className="text-white text-2xl font-bold flex items-center gap-2">{video.title} <span className="text-red-500 text-xs bg-red-500/10 px-2 py-0.5 rounded uppercase">{settings.texts.playerLiveBadge}</span></h2>
-          <div className="flex gap-4 text-gray-400 text-xs mt-2 uppercase tracking-tighter font-bold">
-             <span className="flex items-center gap-1 text-green-400"><Radio size={12}/> {status.peers} {settings.texts.playerPeers}</span>
-             <span className="flex items-center gap-1"><Download size={12}/> {status.speed} MB/s</span>
-             <span className="flex items-center gap-1 text-white">{settings.texts.playerBuffered}: {status.progress}%</span>
-          </div>
-        </div>
-        <button onClick={onClose} className="p-3 bg-white/10 hover:bg-red-600 rounded-full text-white transition-all"><X size={24}/></button>
+      {/* Close Button */}
+      <button 
+        onClick={onClose}
+        className="absolute top-6 right-6 z-[60] p-3 bg-white/10 hover:bg-red-600 rounded-full text-white transition-all shadow-lg backdrop-blur-md"
+      >
+        <X size={24}/>
+      </button>
+
+      {/* Title Bar */}
+      <div className="absolute top-0 left-0 right-0 p-6 z-[60] bg-gradient-to-b from-black/90 to-transparent pointer-events-none">
+        <h2 className="text-white text-2xl font-bold flex items-center gap-2">
+          {video.title} 
+          <span className="text-xs px-2 py-0.5 rounded uppercase font-black" style={{ backgroundColor: settings.primaryColor }}>
+            {settings.texts.playerLiveBadge}
+          </span>
+        </h2>
       </div>
 
-      <div className="w-full h-full relative flex items-center justify-center">
-        {status.loading && !status.error && (
-          <div className="flex flex-col items-center gap-4 text-white z-10">
-            <div className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: settings.primaryColor, borderTopColor: 'transparent' }}></div>
-            <p className="text-sm font-bold animate-pulse">{settings.texts.playerLoading}</p>
-          </div>
-        )}
-        <video 
-          ref={videoRef} className="w-full h-full object-contain"
-          onCanPlay={() => setStatus(s => ({ ...s, ready: true }))}
-          onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
-          onTimeUpdate={() => videoRef.current && setCurrentTime(videoRef.current.currentTime)}
-          onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration)}
-          onClick={togglePlay}
-        />
-      </div>
-
-      <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent px-8 py-8 transition-opacity duration-500 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="w-full h-1.5 bg-white/20 rounded-full mb-6 relative group/progress">
-             <div className="h-full rounded-full transition-all" style={{ width: `${(currentTime / (duration || 1)) * 100}%`, backgroundColor: settings.primaryColor }}>
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full scale-0 group-hover/progress:scale-100 transition-transform shadow-lg" />
-             </div>
-             <input type="range" min="0" max={duration || 1} step="0.01" value={currentTime} onChange={(e) => videoRef.current.currentTime = e.target.value} className="absolute inset-0 w-full opacity-0 cursor-pointer" />
-          </div>
-          <div className="flex justify-between items-center text-white">
-             <div className="flex items-center gap-6">
-                <button onClick={togglePlay} className="transition-colors scale-110" style={{ color: settings.primaryColor }}>{playing ? <Pause size={28}/> : <Play size={28}/>}</button>
-                <div className="flex items-center gap-3 group/vol">
-                   <Volume2 size={24}/>
-                   <div className="w-24 h-1 bg-gray-700 rounded-full relative overflow-hidden">
-                      <div className="absolute top-0 left-0 h-full" style={{ width: `${volume * 100}%`, backgroundColor: settings.primaryColor }} />
-                      <input type="range" min="0" max="1" step="0.1" value={volume} onChange={(e) => { setVolume(e.target.value); if(videoRef.current) videoRef.current.volume = e.target.value; }} className="absolute inset-0 w-full opacity-0 cursor-pointer" />
-                   </div>
-                </div>
-                <span className="text-sm font-mono font-bold tracking-widest">{formatTime(currentTime)} / {formatTime(duration)}</span>
-             </div>
-             <button onClick={() => videoRef.current?.requestFullscreen()} className="hover:text-white"><Maximize size={24}/></button>
-          </div>
-      </div>
+      {/* Embed Player */}
+      <iframe
+        src={video.embedUrl}
+        className="w-full h-full border-0"
+        allowFullScreen
+        allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+        title={video.title}
+        referrerPolicy="origin"
+      />
     </div>
   );
 });
@@ -278,6 +188,7 @@ export default function App() {
     const handleHash = () => {
       if (window.location.hash === '#/admin-secret-login-2026' && !currentUser) setView('login');
       else if (window.location.hash.includes('admin') && currentUser) setView('admin');
+      else if (window.location.hash === '#/contact') setView('contact');
       else if (!window.location.hash) setView('home');
     };
     window.addEventListener('hashchange', handleHash);
@@ -323,7 +234,7 @@ export default function App() {
       const updated = [newVideo, ...videos];
       setVideos(updated);
       localStorage.setItem('savedVideos', JSON.stringify(updated));
-      addLog(`Добавен торент: ${data.title}`, "success");
+      addLog(`Добавен филм: ${data.title}`, "success");
       alert("Добавено успешно!");
     } catch (err) { alert("Грешка при запазване."); }
   };
@@ -344,9 +255,9 @@ export default function App() {
   };
 
   const handleResetTexts = () => {
-    if (window.confirm("⚠️ СИГУРНИ ЛИ СТЕ? Това ще възстанови оригиналните текстове на сайта.")) {
+    if (window.confirm("⚠️ СИГУРНИ ЛИ СТЕ? Това ще възстанови оригиналните текстове.")) {
       updateSettings({ texts: DEFAULT_TEXTS });
-      addLog("Текстовете бяха нулирани до оригиналните", "warning");
+      addLog("Текстовете бяха нулирани", "warning");
     }
   };
 
@@ -358,18 +269,31 @@ export default function App() {
     reader.readAsDataURL(file);
   };
 
+  // --- NAVBAR ---
   const Navbar = () => (
     <nav className="fixed top-0 left-0 right-0 z-40 bg-slate-900/90 backdrop-blur-xl border-b border-slate-800">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-         <button onClick={() => { window.location.hash = ''; setView('home'); }} className="flex items-center gap-3">
-            {settings.useLogo && settings.logoUrl ? (
-               <img src={settings.logoUrl} alt="Logo" className="h-8 w-auto object-contain" />
-            ) : (
-               <span className="text-2xl font-black text-white tracking-tighter">
-                  <span style={{ color: settings.primaryColor }}>{settings.siteName.slice(0, -2)}</span>{settings.siteName.slice(-2)}
-               </span>
-            )}
-         </button>
+         <div className="flex items-center gap-10">
+           <button onClick={() => { window.location.hash = ''; setView('home'); }} className="flex items-center gap-3">
+              {settings.useLogo && settings.logoUrl ? (
+                 <img src={settings.logoUrl} alt="Logo" className="h-8 w-auto object-contain" />
+              ) : (
+                 <span className="text-2xl font-black text-white tracking-tighter">
+                    <span style={{ color: settings.primaryColor }}>{settings.siteName.slice(0, -2)}</span>{settings.siteName.slice(-2)}
+                 </span>
+              )}
+           </button>
+           
+           <div className="hidden md:flex items-center gap-6">
+             <button 
+               onClick={() => { window.location.hash = '#/contact'; setView('contact'); }}
+               className={`transition-colors flex items-center gap-2 text-sm font-black uppercase tracking-wider ${view === 'contact' ? 'text-white' : 'text-slate-400 hover:text-white'}`}
+             >
+               <MessageSquare size={16} style={view === 'contact' ? { color: settings.primaryColor } : {}}/> Контакти
+             </button>
+           </div>
+         </div>
+
          <div className="flex items-center gap-4">
            {currentUser && (
               <div className="flex items-center gap-3">
@@ -382,8 +306,113 @@ export default function App() {
     </nav>
   );
 
+  // --- CONTACT VIEW ---
+  const ContactView = () => {
+    const [form, setForm] = useState({ name: '', message: '' });
+    const [status, setStatus] = useState('idle'); // idle, sending, success, error
+    
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setStatus('sending');
+      try {
+        const currentDate = new Date().toLocaleString('bg-BG');
+        const emailBody = `Ново запитване от AnimationBG\n═══════════════════════════════════\nИМЕ: ${form.name}\nДАТА: ${currentDate}\n═══════════════════════════════════\nЗАПИТВАНЕ:\n${form.message}\n═══════════════════════════════════\nИзпратено от: animaciqbg.net`.trim();
+        const mailtoLink = `mailto:AnimaciqBG@proton.me?subject=Запитване от ${form.name}&body=${encodeURIComponent(emailBody)}`;
+        
+        window.location.href = mailtoLink;
+        
+        setStatus('success');
+        setForm({ name: '', message: '' });
+        setTimeout(() => setStatus('idle'), 5000);
+      } catch (err) {
+        setStatus('error');
+        setTimeout(() => setStatus('idle'), 3000);
+      }
+    };
+
+    return (
+      <div className="pt-32 pb-20 px-6 max-w-2xl mx-auto min-h-screen">
+        <div className="text-center mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <h1 className="text-4xl font-black text-white mb-3 flex items-center justify-center gap-4">
+            <MessageSquare style={{ color: settings.primaryColor }} size={40}/>
+            Свържи се с нас
+          </h1>
+          <p className="text-slate-500 text-lg font-medium">
+            Имате въпрос или предложение? Пишете ни!
+          </p>
+        </div>
+
+        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-2xl animate-in fade-in zoom-in duration-300">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-slate-400 text-xs font-black mb-2 uppercase tracking-[0.2em]">Вашето име</label>
+              <input
+                type="text" required value={form.name}
+                onChange={e => setForm({...form, name: e.target.value})}
+                placeholder="Иван Иванов"
+                className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl text-white outline-none focus:ring-1 transition-all"
+                style={{ '--tw-ring-color': settings.primaryColor }}
+                disabled={status === 'sending'}
+              />
+            </div>
+            <div>
+              <label className="block text-slate-400 text-xs font-black mb-2 uppercase tracking-[0.2em]">Вашето запитване</label>
+              <textarea
+                required value={form.message}
+                onChange={e => setForm({...form, message: e.target.value})}
+                placeholder="Опишете вашето запитване или предложение..."
+                rows={6}
+                className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl text-white outline-none focus:ring-1 resize-none transition-all"
+                style={{ '--tw-ring-color': settings.primaryColor }}
+                disabled={status === 'sending'}
+              />
+            </div>
+            <button
+              type="submit" disabled={status === 'sending'}
+              className="w-full text-white font-black py-4 rounded-xl shadow-lg hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ backgroundColor: settings.primaryColor }}
+            >
+              {status === 'sending' ? <RefreshCw size={20} className="animate-spin"/> : <Send size={20}/>}
+              {status === 'sending' ? 'ОТВАРЯНЕ НА ИМЕЙЛ...' : 'ИЗПРАТИ ЗАПИТВАНЕ'}
+            </button>
+
+            {status === 'success' && (
+              <div className="p-4 bg-green-900/20 border border-green-700 rounded-xl text-green-400 text-center font-bold text-sm animate-in fade-in">
+                ✓ Вашият имейл клиент беше зареден. Моля кликнете "Изпрати" в него.
+              </div>
+            )}
+          </form>
+
+          <div className="mt-8 pt-8 border-t border-slate-800 flex flex-col items-center gap-3">
+             <div className="flex items-center gap-3 text-slate-400">
+                <Mail size={18} style={{ color: settings.primaryColor }}/>
+                <a href="mailto:AnimaciqBG@proton.me" className="hover:text-white font-bold transition-colors">AnimaciqBG@proton.me</a>
+             </div>
+             <span className="text-[10px] text-slate-600 uppercase font-black tracking-widest text-center">Отговаряме в рамките на 24 часа</span>
+          </div>
+        </div>
+
+        {/* DMCA Disclaimer */}
+        <div className="mt-12 p-8 bg-slate-900/40 border border-slate-800 rounded-3xl text-slate-500 text-sm leading-relaxed">
+          <h3 className="font-black text-white mb-4 flex items-center gap-2 uppercase tracking-wider text-xs">
+            <Shield size={16} className="text-blue-500"/> Disclaimer / DMCA
+          </h3>
+          <p className="mb-4">
+            AnimationBG не хоства видео съдържание на собствени сървъри. 
+            Всички видеа се зареждат от независими трети страни чрез стандартна embed технология.
+          </p>
+          <p>
+            Ако сте притежател на авторски права и считате, че даден линк нарушава вашите права, 
+            моля свържете се с нас на посочения имейл за незабавно премахване на съответния линк от нашия каталог.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  // --- ADMIN PANEL ---
   const AdminPanel = () => {
-    const [form, setForm] = useState({ title: '', year: '', magnetLink: '', thumbnail: '', description: '' });
+    const [form, setForm] = useState({ title: '', year: '', embedUrl: '', thumbnail: '', description: '' });
 
     const TextInput = ({ label, field }) => (
       <div className="space-y-1.5">
@@ -417,12 +446,24 @@ export default function App() {
               <div className="space-y-10">
                  <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl">
                     <h2 className="text-2xl font-black text-white mb-6 flex items-center gap-3"><Plus style={{ color: settings.primaryColor }}/> Добави анимация</h2>
-                    <form onSubmit={e => { e.preventDefault(); handleAddVideo(form); setForm({ title: '', year: '', magnetLink: '', thumbnail: '', description: '' }); }} className="grid grid-cols-2 gap-6">
+                    <form onSubmit={e => { e.preventDefault(); handleAddVideo(form); setForm({ title: '', year: '', embedUrl: '', thumbnail: '', description: '' }); }} className="grid grid-cols-2 gap-6">
                        <input required value={form.title} onChange={e=>setForm({...form, title: e.target.value})} placeholder="Заглавие" className="col-span-2 bg-slate-950 border border-slate-800 p-4 rounded-xl text-white outline-none focus:ring-1" style={{ '--tw-ring-color': settings.primaryColor }}/>
                        <input required value={form.year} onChange={e=>setForm({...form, year: e.target.value})} placeholder="Година" className="bg-slate-950 border border-slate-800 p-4 rounded-xl text-white outline-none"/>
                        <input required value={form.thumbnail} onChange={e=>setForm({...form, thumbnail: e.target.value})} placeholder="Thumbnail URL" className="bg-slate-950 border border-slate-800 p-4 rounded-xl text-white outline-none"/>
                        <textarea required value={form.description} onChange={e=>setForm({...form, description: e.target.value})} placeholder="Описание..." className="col-span-2 bg-slate-950 border border-slate-800 p-4 rounded-xl text-white h-32 outline-none"/>
-                       <input required value={form.magnetLink} onChange={e=>setForm({...form, magnetLink: e.target.value})} placeholder="magnet:?xt=urn:..." className="col-span-2 bg-slate-900 border border-slate-800 p-4 rounded-xl text-white outline-none font-mono text-xs"/>
+                       
+                       <div className="col-span-2 space-y-4">
+                          <div className="p-4 bg-blue-900/10 border border-blue-900/20 rounded-2xl">
+                             <h4 className="text-blue-400 font-black text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2"><HelpCircle size={14}/> Как да намериш Embed URL:</h4>
+                             <ol className="text-[10px] text-slate-400 space-y-1 list-decimal list-inside font-bold">
+                                <li>Намери филма в IMDB (напр. tt2294629)</li>
+                                <li>Копирай ID-то</li>
+                                <li>Използвай формат: https://vidsrc.me/embed/movie/tt...</li>
+                             </ol>
+                          </div>
+                          <input required value={form.embedUrl} onChange={e=>setForm({...form, embedUrl: e.target.value})} placeholder="Embed URL (от Vidsrc/2Embed)" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl text-white outline-none font-mono text-xs"/>
+                       </div>
+                       
                        <button className="col-span-2 text-white font-black py-4 rounded-xl hover:brightness-110 transition-all" style={{ backgroundColor: settings.primaryColor }}>ПУБЛИКУВАЙ</button>
                     </form>
                  </div>
@@ -450,65 +491,42 @@ export default function App() {
             {adminTab === 'texts' && (
               <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-2xl space-y-10 text-white animate-in fade-in slide-in-from-bottom-4 duration-500">
                  <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-black flex items-center gap-3"><Type style={{ color: settings.primaryColor }}/> Управление на съдържанието</h2>
-                    <button onClick={handleResetTexts} className="p-2 text-slate-500 hover:text-red-500 transition-colors" title="Нулиране на текстове"><RotateCcw size={18}/></button>
+                    <h2 className="text-2xl font-black flex items-center gap-3"><Type style={{ color: settings.primaryColor }}/> Текстове</h2>
+                    <button onClick={handleResetTexts} className="p-2 text-slate-500 hover:text-red-500 transition-colors"><RotateCcw size={18}/></button>
                  </div>
-
-                 {/* HomePage Section */}
                  <section className="space-y-6">
-                    <h3 className="text-xs font-black text-slate-600 uppercase tracking-[0.2em] border-b border-slate-800 pb-2 flex items-center gap-2"><Home size={14}/> Главна страница</h3>
+                    <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest border-b border-slate-800 pb-2">Главна страница</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                       <TextInput label="Главно заглавие" field="homeTitle" />
+                       <TextInput label="Заглавие" field="homeTitle" />
                        <TextInput label="Подзаглавие" field="homeSubtitle" />
                        <TextInput label="Search placeholder" field="searchPlaceholder" />
-                       <TextInput label="Video Badge (напр. HD)" field="videoBadge" />
+                       <TextInput label="Video Badge" field="videoBadge" />
                     </div>
                  </section>
-
-                 {/* Video Player Section */}
                  <section className="space-y-6 pt-6">
-                    <h3 className="text-xs font-black text-slate-600 uppercase tracking-[0.2em] border-b border-slate-800 pb-2 flex items-center gap-2"><Video size={14}/> Видео плейър</h3>
+                    <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest border-b border-slate-800 pb-2">Плейър</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                       <TextInput label="Live Badge текст" field="playerLiveBadge" />
-                       <TextInput label="Loading текст" field="playerLoading" />
-                       <TextInput label="Етикет Peers" field="playerPeers" />
-                       <TextInput label="Етикет Buffered" field="playerBuffered" />
+                       <TextInput label="Live Badge" field="playerLiveBadge" />
+                       <TextInput label="Loading" field="playerLoading" />
                     </div>
                  </section>
-
-                 {/* Login Section */}
                  <section className="space-y-6 pt-6">
-                    <h3 className="text-xs font-black text-slate-600 uppercase tracking-[0.2em] border-b border-slate-800 pb-2 flex items-center gap-2"><Lock size={14}/> Вход (Admin Login)</h3>
+                    <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest border-b border-slate-800 pb-2">Вход</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                       <TextInput label="Заглавие на формата" field="loginTitle" />
+                       <TextInput label="Заглавие" field="loginTitle" />
                        <TextInput label="Текст на бутона" field="loginButton" />
-                       <TextInput label="Placeholder Имейл" field="loginEmailPlaceholder" />
-                       <TextInput label="Placeholder Парола" field="loginPasswordPlaceholder" />
                     </div>
                  </section>
-
-                 {/* Admin Tabs Section */}
                  <section className="space-y-6 pt-6">
-                    <h3 className="text-xs font-black text-slate-600 uppercase tracking-[0.2em] border-b border-slate-800 pb-2 flex items-center gap-2"><Layout size={14}/> Админ панел (Меню)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                       <TextInput label="Таб Каталог" field="adminTabCatalog" />
-                       <TextInput label="Таб Настройки" field="adminTabSettings" />
-                       <TextInput label="Таб Логове" field="adminTabLogs" />
-                       <TextInput label="Таб Текстове" field="adminTabTexts" />
-                    </div>
-                 </section>
-
-                 {/* Footer Section */}
-                 <section className="space-y-6 pt-6">
-                    <h3 className="text-xs font-black text-slate-600 uppercase tracking-[0.2em] border-b border-slate-800 pb-2 flex items-center gap-2"><ImageIcon size={14}/> Footer</h3>
-                    <TextInput label="Описание / Copyright текст" field="footerDescription" />
+                    <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest border-b border-slate-800 pb-2">Footer</h3>
+                    <TextInput label="Описание" field="footerDescription" />
                  </section>
               </div>
             )}
 
             {adminTab === 'logs' && (
                <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-2xl h-[600px] overflow-hidden flex flex-col text-white">
-                  <h2 className="text-2xl font-black mb-6 flex items-center gap-3"><Activity style={{ color: settings.primaryColor }}/> Системни логове</h2>
+                  <h2 className="text-2xl font-black mb-6 flex items-center gap-3"><Activity style={{ color: settings.primaryColor }}/> Логове</h2>
                   <div className="flex-1 overflow-y-auto pr-4 space-y-2">
                      {activityLog.map(l => (
                         <div key={l.id} className="p-3 bg-slate-950 border-l-4 rounded flex justify-between items-center" style={{ borderLeftColor: settings.primaryColor }}>
@@ -526,14 +544,14 @@ export default function App() {
   return (
     <div className="bg-slate-950 min-h-screen text-slate-300 selection:bg-red-600 selection:text-white" onContextMenu={e=>e.preventDefault()}>
       <VisualEffectLayer type={settings.visualEffect} />
-      {activeVideo && <TorrentPlayer video={activeVideo} onClose={() => setActiveVideo(null)} settings={settings} />}
+      {activeVideo && <EmbedPlayer video={activeVideo} onClose={() => setActiveVideo(null)} settings={settings} />}
       <Navbar />
       <main>
         {view === 'home' && (
            <div className="pt-24 pb-20 px-6 max-w-7xl mx-auto min-h-screen">
               <div className="mb-12">
                  <h1 className="text-4xl font-black text-white mb-2">{settings.texts.homeTitle}</h1>
-                 <p className="text-slate-500 text-lg">{settings.texts.homeSubtitle}</p>
+                 <p className="text-slate-500 text-lg font-medium">{settings.texts.homeSubtitle}</p>
               </div>
               <div className="mb-10 relative">
                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"/>
@@ -546,7 +564,7 @@ export default function App() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                 {videos.filter(v=>v.title.toLowerCase().includes(searchQuery.toLowerCase())).map(v => (
-                  <div key={v.id} onClick={() => setActiveVideo(v)} className="bg-slate-900 rounded-2xl overflow-hidden cursor-pointer hover:ring-2 transition-all group transform hover:-translate-y-2" style={{ '--tw-ring-color': settings.primaryColor }}>
+                  <div key={v.id} onClick={() => setActiveVideo(v)} className="bg-slate-900 rounded-2xl overflow-hidden cursor-pointer hover:ring-2 transition-all group transform hover:-translate-y-2 shadow-2xl" style={{ '--tw-ring-color': settings.primaryColor }}>
                      <div className="aspect-[3/4] relative">
                         <img src={v.thumbnail} className="w-full h-full object-cover" alt={v.title}/>
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
@@ -554,9 +572,9 @@ export default function App() {
                               <Play fill="white" className="text-white ml-1" size={32}/>
                            </div>
                         </div>
-                        <div className="absolute top-3 right-3 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-tighter" style={{ backgroundColor: settings.primaryColor }}>{settings.texts.videoBadge}</div>
+                        <div className="absolute top-3 right-3 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-tighter shadow-lg" style={{ backgroundColor: settings.primaryColor }}>{settings.texts.videoBadge}</div>
                      </div>
-                     <div className="p-5"><h3 className="font-bold text-white text-lg truncate mb-1">{v.title}</h3><div className="flex justify-between items-center text-xs text-slate-500"><span>{v.year}</span><span className="flex items-center gap-1"><Eye size={14}/> {v.views}</span></div></div>
+                     <div className="p-5"><h3 className="font-bold text-white text-lg truncate mb-1">{v.title}</h3><div className="flex justify-between items-center text-xs text-slate-500 font-bold uppercase tracking-wider"><span>{v.year}</span><span className="flex items-center gap-1"><Eye size={14}/> {v.views}</span></div></div>
                   </div>
                 ))}
               </div>
@@ -575,12 +593,18 @@ export default function App() {
            </div>
         )}
         {view === 'admin' && <AdminPanel />}
+        {view === 'contact' && <ContactView />}
       </main>
       <footer className="py-20 border-t border-slate-900 px-6 mt-20">
          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
             <div>
                <h3 className="text-2xl font-black text-white tracking-tighter mb-2">{settings.useLogo && settings.logoUrl ? <img src={settings.logoUrl} className="h-6" alt="Footer Logo" /> : settings.siteName}</h3>
-               <p className="text-slate-600 text-sm">{settings.texts.footerDescription}</p>
+               <p className="text-slate-600 text-sm font-medium">{settings.texts.footerDescription}</p>
+            </div>
+            <div className="flex gap-8 text-[10px] font-black uppercase tracking-widest text-slate-500">
+               <button onClick={() => { window.location.hash = '#/contact'; setView('contact'); }} className="hover:text-white transition-colors">DMCA</button>
+               <button onClick={() => { window.location.hash = '#/contact'; setView('contact'); }} className="hover:text-white transition-colors">Поверителност</button>
+               <button onClick={() => { window.location.hash = '#/contact'; setView('contact'); }} className="hover:text-white transition-colors">Условия</button>
             </div>
          </div>
       </footer>
