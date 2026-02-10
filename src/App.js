@@ -13,13 +13,11 @@ import {
 } from 'lucide-react';
 
 /**
- * ANIMATIONBG - ВЕРСИЯ 9.2 (FULL CONTENT CMS)
+ * ANIMATIONBG - ВЕРСИЯ 9.3 (CLEAN UI - NO P2P REFERENCES)
  * * Промени:
- * - Пълна система за управление на текстовете (CMS) чрез Admin Panel.
- * - Всички стрингове в сайта вече са динамични и редактируеми.
- * - Нов таб "Текстове" в настройките, организиран по секции.
- * - Real-time преглед и запис в localStorage.
- * - Опция за Factory Reset само на текстовете.
+ * - Премахнати всички препратки към "P2P Streaming" в текстовете по подразбиране.
+ * - Обновени DEFAULT_TEXTS за по-професионално излъчване.
+ * - Текстът за зареждане в плейъра е променен на "Свързване с източника...".
  */
 
 const DEFAULT_VIDEOS = [
@@ -40,9 +38,9 @@ const DEFAULT_VIDEOS = [
 
 const DEFAULT_TEXTS = {
   homeTitle: 'Български дублирани анимации',
-  homeSubtitle: 'P2P Стрийминг технология. Гледай веднага.',
+  homeSubtitle: 'Премиум технология за стрийминг. Гледай веднага.',
   searchPlaceholder: 'Търсене...',
-  footerDescription: 'P2P Стрийминг Платформа © 2026',
+  footerDescription: 'Стрийминг Платформа за анимации © 2026',
   videoBadge: 'HD Stream',
   loginTitle: 'АДМИН ПАНЕЛ',
   loginEmailPlaceholder: 'Имейл',
@@ -53,9 +51,9 @@ const DEFAULT_TEXTS = {
   adminTabTexts: 'Текстове',
   adminTabLogs: 'Логове',
   playerLiveBadge: 'СТРИЙМ НА ЖИВО',
-  playerLoading: 'Свързване с P2P...',
-  playerPeers: 'Peers',
-  playerBuffered: 'Buffered'
+  playerLoading: 'Свързване с източника...',
+  playerPeers: 'Източници',
+  playerBuffered: 'Буферирано'
 };
 
 const MOCK_ADMIN = { id: 'a1', name: 'Администратор', role: 'admin' };
@@ -275,7 +273,6 @@ export default function App() {
     const savedSettings = localStorage.getItem('siteSettings');
     if (savedSettings) {
       const parsed = JSON.parse(savedSettings);
-      // Осигуряваме, че новите текстови полета ще присъстват дори при стари настройки
       setSettings({ ...settings, ...parsed, texts: { ...DEFAULT_TEXTS, ...parsed.texts } });
     }
     const handleHash = () => {
