@@ -285,7 +285,6 @@ export default function App() {
   const [likedVideos, setLikedVideos] = useState(() => {
     try { return JSON.parse(localStorage.getItem('v14_liked') || '[]'); } catch { return []; }
   });
-  const [playerLikeEnabled, setPlayerLikeEnabled] = useState(false);
 
   // State: Admin
   const [adminTab, setAdminTab] = useState('dashboard');
@@ -414,15 +413,6 @@ export default function App() {
     }
   }, [videos, inquiries, collections, settings]);
 
-  // Player like delay: enable buttons 10s after opening
-  useEffect(() => {
-    if (activeVideo) {
-      setPlayerLikeEnabled(false);
-      const timer = setTimeout(() => setPlayerLikeEnabled(true), 10000);
-      return () => clearTimeout(timer);
-    }
-  }, [activeVideo]);
-
   // Persist liked videos
   useEffect(() => {
     localStorage.setItem('v14_liked', JSON.stringify(likedVideos));
@@ -431,10 +421,13 @@ export default function App() {
   // Actions
   const handleLike = useCallback((id) => {
     setLikedVideos(prev => {
-      if (prev.includes(id)) return prev;
+      if (prev.includes(id)) {
+        setVideos(vids => vids.map(v => v.id === id ? { ...v, likes: Math.max((v.likes || 0) - 1, 0) } : v));
+        return prev.filter(vid => vid !== id);
+      }
+      setVideos(vids => vids.map(v => v.id === id ? { ...v, likes: (v.likes || 0) + 1 } : v));
       return [...prev, id];
     });
-    setVideos(prev => prev.map(v => v.id === id ? { ...v, likes: (v.likes || 0) + 1 } : v));
   }, []);
 
   const handleStatUpdate = useCallback((id, field) => {
@@ -542,34 +535,6 @@ export default function App() {
              onLoad={() => handleStatUpdate(activeVideo.id, 'views')}
            />
 
-           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-8 premium-blur border border-white/10 p-4 px-10 rounded-[2rem] z-[80] transition-all duration-500 shadow-3xl bg-black/40">
-              <button
-                disabled={!playerLikeEnabled}
-                onClick={() => { if (playerLikeEnabled) { handleLike(activeVideo.id); } }}
-                className={`flex items-center gap-3 font-black transition-all duration-500 ${
-                  !playerLikeEnabled
-                    ? 'text-slate-600 cursor-not-allowed'
-                    : likedVideos.includes(activeVideo.id)
-                      ? 'text-rose-500'
-                      : 'text-white hover:text-green-400 cursor-pointer'
-                }`}
-              >
-                <ThumbsUp size={24}/> {activeVideo.likes || 0}
-                {!playerLikeEnabled && <span className="text-[9px] text-slate-600 uppercase tracking-widest ml-1">Изчакайте...</span>}
-              </button>
-              <div className="w-px h-8 bg-white/10"/>
-              <button
-                disabled={!playerLikeEnabled}
-                onClick={() => { if (playerLikeEnabled) handleStatUpdate(activeVideo.id, 'dislikes'); }}
-                className={`flex items-center gap-3 font-black transition-all duration-500 ${
-                  !playerLikeEnabled
-                    ? 'text-slate-600 cursor-not-allowed'
-                    : 'text-white hover:text-red-500 cursor-pointer'
-                }`}
-              >
-                <ThumbsDown size={24}/> {activeVideo.dislikes || 0}
-              </button>
-           </div>
         </div>
       )}
 
