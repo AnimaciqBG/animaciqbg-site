@@ -11,8 +11,10 @@ import {
   MessageSquare, ShieldAlert, Ban, Stamp, HardDrive, Download,
   Radio, RefreshCw, Sparkles, Type, RotateCcw, Layout, Mail,
   ExternalLink, FileDown, Layers, Info, FileUp, Zap, BarChart3,
-  Calendar, Database, Share2, Monitor, Smartphone, Tablet
+  Calendar, Database, Share2, Monitor, Smartphone, Tablet,
+  Cloud
 } from 'lucide-react';
+import { pushToCloud, subscribeToCloud, firebaseEnabled } from './cloudSync';
 
 /**
  * ANIMATIONBG - ВЕРСИЯ 14.0 (PREMIUM PRODUCTION BUILD)
@@ -262,6 +264,11 @@ export default function App() {
     version: SCHEMA_VERSION
   });
 
+  // Cloud Sync refs
+  const cloudUpdateRef = useRef(false);
+  const pushTimerRef = useRef(null);
+  const [cloudConnected, setCloudConnected] = useState(firebaseEnabled);
+
   // Utils
   const showToast = useCallback((msg, type = 'info') => setToast({ msg, type }), []);
   const addLog = useCallback((msg, type = 'info') => {
@@ -307,12 +314,35 @@ export default function App() {
     }
   }, [currentUser, showToast]);
 
-  // Persistance
+  // Cloud Sync: Subscribe to remote changes
+  useEffect(() => {
+    if (!firebaseEnabled) return;
+    const unsub = subscribeToCloud((cloudData) => {
+      cloudUpdateRef.current = true;
+      setCloudConnected(true);
+      if (cloudData.videos) setVideos(cloudData.videos);
+      if (cloudData.inquiries) setInquiries(cloudData.inquiries);
+      if (cloudData.collections) setCollections(cloudData.collections);
+      if (cloudData.settings) setSettings(prev => ({ ...prev, ...cloudData.settings }));
+      setTimeout(() => { cloudUpdateRef.current = false; }, 500);
+    });
+    return unsub;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persistance + Cloud Push
   useEffect(() => {
     localStorage.setItem('v14_videos', JSON.stringify(videos));
     localStorage.setItem('v14_inquiries', JSON.stringify(inquiries));
     localStorage.setItem('v14_collections', JSON.stringify(collections));
     localStorage.setItem('v14_settings', JSON.stringify(settings));
+
+    if (!cloudUpdateRef.current && firebaseEnabled) {
+      if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
+      pushTimerRef.current = setTimeout(() => {
+        pushToCloud({ videos, inquiries, collections, settings });
+      }, 1000);
+    }
   }, [videos, inquiries, collections, settings]);
 
   // Actions
@@ -1120,6 +1150,14 @@ export default function App() {
           <div className="text-[10px] font-black text-slate-800 uppercase tracking-[0.8em]">
             AnimationBG Platform v14.0 • Cloud Sync • Smart Features
           </div>
+          {firebaseEnabled && (
+            <div className="mt-6 flex items-center justify-center gap-2 text-xs">
+              <Cloud size={14} className={cloudConnected ? 'text-emerald-500' : 'text-slate-600'} />
+              <span className={cloudConnected ? 'text-emerald-500/70' : 'text-slate-700'}>
+                {cloudConnected ? 'Cloud Sync Active' : 'Connecting...'}
+              </span>
+            </div>
+          )}
         </div>
       </footer>
     </div>
