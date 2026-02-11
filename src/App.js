@@ -11,8 +11,10 @@ import {
   MessageSquare, ShieldAlert, Ban, Stamp, HardDrive, Download,
   Radio, RefreshCw, Sparkles, Type, RotateCcw, Layout, Mail,
   ExternalLink, FileDown, Layers, Info, FileUp, Zap, BarChart3,
-  Calendar, Database, Share2, Monitor, Smartphone, Tablet
+  Calendar, Database, Share2, Monitor, Smartphone, Tablet,
+  Cloud
 } from 'lucide-react';
+import { pushToCloud, subscribeToCloud, firebaseEnabled } from './cloudSync';
 
 /**
  * ANIMATIONBG - ВЕРСИЯ 14.0 (PREMIUM PRODUCTION BUILD)
@@ -262,6 +264,12 @@ export default function App() {
     version: SCHEMA_VERSION
   });
 
+  // Cloud Sync refs
+  const cloudUpdateRef = useRef(false);
+  const pushTimerRef = useRef(null);
+  const initialSyncDoneRef = useRef(!firebaseEnabled); // Skip guard if Firebase disabled
+  const [cloudConnected, setCloudConnected] = useState(false);
+
   // Utils
   const showToast = useCallback((msg, type = 'info') => setToast({ msg, type }), []);
   const addLog = useCallback((msg, type = 'info') => {
@@ -307,12 +315,63 @@ export default function App() {
     }
   }, [currentUser, showToast]);
 
-  // Persistance
+  // Cloud Sync: Subscribe to remote changes
   useEffect(() => {
+    if (!firebaseEnabled) return;
+
+    // Timeout fallback: if Firebase doesn't respond in 5s, allow local pushes
+    const fallbackTimer = setTimeout(() => {
+      if (!initialSyncDoneRef.current) {
+        console.log('[CloudSync] Timeout waiting for initial data, enabling local push');
+        initialSyncDoneRef.current = true;
+      }
+    }, 5000);
+
+    const unsub = subscribeToCloud((cloudData) => {
+      console.log('[CloudSync] Applying cloud data to state');
+      cloudUpdateRef.current = true;
+      setCloudConnected(true);
+
+      if (cloudData.videos && Array.isArray(cloudData.videos)) setVideos(cloudData.videos);
+      if (cloudData.inquiries && Array.isArray(cloudData.inquiries)) setInquiries(cloudData.inquiries);
+      if (cloudData.collections && Array.isArray(cloudData.collections)) setCollections(cloudData.collections);
+      if (cloudData.settings) setSettings(prev => ({ ...prev, ...cloudData.settings }));
+
+      // Mark initial sync as done after first successful receive
+      if (!initialSyncDoneRef.current) {
+        console.log('[CloudSync] Initial sync complete - cloud data loaded');
+        initialSyncDoneRef.current = true;
+      }
+
+      // Keep the guard active long enough for all state updates to settle
+      setTimeout(() => { cloudUpdateRef.current = false; }, 1000);
+    });
+
+    return () => {
+      clearTimeout(fallbackTimer);
+      unsub();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persistance + Cloud Push
+  useEffect(() => {
+    // Always save to localStorage (local cache)
     localStorage.setItem('v14_videos', JSON.stringify(videos));
     localStorage.setItem('v14_inquiries', JSON.stringify(inquiries));
     localStorage.setItem('v14_collections', JSON.stringify(collections));
     localStorage.setItem('v14_settings', JSON.stringify(settings));
+
+    // Only push to Firebase when:
+    // 1. Firebase is enabled
+    // 2. We're not processing incoming cloud data (cloudUpdateRef)
+    // 3. Initial sync from Firebase is complete (initialSyncDoneRef)
+    if (firebaseEnabled && !cloudUpdateRef.current && initialSyncDoneRef.current) {
+      if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
+      pushTimerRef.current = setTimeout(() => {
+        pushToCloud({ videos, inquiries, collections, settings });
+      }, 1500);
+    }
   }, [videos, inquiries, collections, settings]);
 
   // Actions
@@ -1120,6 +1179,14 @@ export default function App() {
           <div className="text-[10px] font-black text-slate-800 uppercase tracking-[0.8em]">
             AnimationBG Platform v14.0 • Cloud Sync • Smart Features
           </div>
+          {firebaseEnabled && (
+            <div className="mt-6 flex items-center justify-center gap-2 text-xs">
+              <Cloud size={14} className={cloudConnected ? 'text-emerald-500' : 'text-slate-600'} />
+              <span className={cloudConnected ? 'text-emerald-500/70' : 'text-slate-700'}>
+                {cloudConnected ? 'Cloud Sync Active' : 'Connecting...'}
+              </span>
+            </div>
+          )}
         </div>
       </footer>
     </div>
