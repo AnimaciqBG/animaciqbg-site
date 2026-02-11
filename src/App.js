@@ -78,6 +78,8 @@ const GlobalStyles = memo(() => (
     @keyframes glow { 0%, 100% { opacity: 0.2; transform: scale(1); } 50% { opacity: 1; transform: scale(1.5) translate(10px, -10px); } }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     @keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1.5); opacity: 0; } }
+    @keyframes heartPop { 0% { transform: scale(1); } 30% { transform: scale(1.4); } 60% { transform: scale(0.9); } 100% { transform: scale(1); } }
+    .animate-heart-pop { animation: heartPop 0.4s ease-out; }
     .animate-fall { animation: fall linear infinite; }
     .animate-rain { animation: rain linear infinite; }
     .animate-sway { animation: sway linear infinite; }
@@ -141,59 +143,75 @@ const ConfirmDialog = memo(({ isOpen, title, message, onConfirm, onCancel }) => 
 /**
  * Video Card
  */
-const VideoCard = memo(({ video, onClick, onLike, primaryColor }) => (
-  <div
-    onClick={() => onClick(video)}
-    className="group relative aspect-[2/3] bg-slate-900 rounded-[2rem] overflow-hidden cursor-pointer shadow-2xl transition-all duration-500 hover:scale-[1.05] ring-1 ring-white/5 hover:ring-white/20"
-  >
-    <img src={video.thumbnail} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={video.title}/>
-    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent opacity-60 group-hover:opacity-80 transition-opacity"/>
+const VideoCard = memo(({ video, onClick, onLike, isLiked, primaryColor }) => {
+  const [justLiked, setJustLiked] = useState(false);
 
-    {/* Badges */}
-    <div className="absolute top-4 left-4 flex flex-col gap-2">
-      <div className="bg-black/60 premium-blur px-3 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-widest border border-white/10">
-        {video.year}
-      </div>
-      {video.audioType && (
-        <div className={`premium-blur px-3 py-1 rounded-full text-[9px] font-black text-white uppercase tracking-widest border border-white/10 flex items-center gap-1 ${video.audioType === 'bg_audio' ? 'bg-emerald-600/80' : 'bg-purple-600/80'}`}>
-          {video.audioType === 'bg_audio' ? <><Volume2 size={10}/> БГ АУДИО</> : <><FileText size={10}/> СУБТИТРИ</>}
-        </div>
-      )}
-    </div>
+  const handleHeartClick = (e) => {
+    e.stopPropagation();
+    if (isLiked) return;
+    setJustLiked(true);
+    onLike && onLike(video.id);
+    setTimeout(() => setJustLiked(false), 500);
+  };
 
-    {/* Like Button */}
-    <button
-      onClick={(e) => { e.stopPropagation(); onLike && onLike(video.id); }}
-      className="absolute top-4 right-4 z-10 p-2.5 bg-black/40 premium-blur rounded-full border border-white/10 text-white hover:text-rose-500 hover:bg-rose-500/20 hover:border-rose-500/30 transition-all opacity-0 group-hover:opacity-100"
+  return (
+    <div
+      onClick={() => onClick(video)}
+      className="group relative aspect-[2/3] bg-slate-900 rounded-[2rem] overflow-hidden cursor-pointer shadow-2xl transition-all duration-500 hover:scale-[1.05] ring-1 ring-white/5 hover:ring-white/20"
     >
-      <Heart size={16} />
-    </button>
+      <img src={video.thumbnail} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={video.title}/>
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent opacity-60 group-hover:opacity-80 transition-opacity"/>
 
-    <div className="absolute inset-0 p-6 flex flex-col justify-end transform transition-transform duration-500 group-hover:translate-y-[-8px]">
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <div
-          className="px-3 py-1 rounded-full w-fit text-[9px] font-black text-white uppercase tracking-widest shadow-lg"
-          style={{ backgroundColor: video.streamType === 'download' ? '#10B981' : primaryColor }}
-        >
-          {video.streamType === 'download' ? 'БГ АУДИО' : 'СТРИЙМ'}
+      {/* Badges */}
+      <div className="absolute top-4 left-4 flex flex-col gap-2">
+        <div className="bg-black/60 premium-blur px-3 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-widest border border-white/10">
+          {video.year}
+        </div>
+        {video.audioType && (
+          <div className={`premium-blur px-3 py-1 rounded-full text-[9px] font-black text-white uppercase tracking-widest border border-white/10 flex items-center gap-1 ${video.audioType === 'bg_audio' ? 'bg-emerald-600/80' : 'bg-purple-600/80'}`}>
+            {video.audioType === 'bg_audio' ? <><Volume2 size={10}/> БГ АУДИО</> : <><FileText size={10}/> СУБТИТРИ</>}
+          </div>
+        )}
+      </div>
+
+      {/* Like Button */}
+      <button
+        onClick={handleHeartClick}
+        className={`absolute top-4 right-4 z-10 p-2.5 premium-blur rounded-full border transition-all
+          ${isLiked
+            ? 'bg-rose-500/30 border-rose-500/40 text-rose-500 opacity-100'
+            : 'bg-black/40 border-white/10 text-white hover:text-rose-500 hover:bg-rose-500/20 hover:border-rose-500/30 opacity-0 group-hover:opacity-100'}
+          ${justLiked ? 'animate-heart-pop' : ''}`}
+      >
+        <Heart size={16} fill={isLiked ? 'currentColor' : 'none'} />
+      </button>
+
+      <div className="absolute inset-0 p-6 flex flex-col justify-end transform transition-transform duration-500 group-hover:translate-y-[-8px]">
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <div
+            className="px-3 py-1 rounded-full w-fit text-[9px] font-black text-white uppercase tracking-widest shadow-lg"
+            style={{ backgroundColor: video.streamType === 'download' ? '#10B981' : primaryColor }}
+          >
+            {video.streamType === 'download' ? 'БГ АУДИО' : 'СТРИЙМ'}
+          </div>
+        </div>
+        <h3 className="font-black text-white text-xl line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">{video.title}</h3>
+
+        <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 mt-4 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="flex items-center gap-1"><Eye size={12}/> {(video.views || 0).toLocaleString()}</span>
+          <span className="flex items-center gap-1"><Heart size={12} className="text-rose-500" fill={isLiked ? '#f43f5e' : 'none'}/> {(video.likes || 0).toLocaleString()}</span>
         </div>
       </div>
-      <h3 className="font-black text-white text-xl line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">{video.title}</h3>
 
-      <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 mt-4 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
-        <span className="flex items-center gap-1"><Eye size={12}/> {(video.views || 0).toLocaleString()}</span>
-        <span className="flex items-center gap-1"><Heart size={12} className="text-rose-500"/> {(video.likes || 0).toLocaleString()}</span>
+      {/* Hover Play Button */}
+      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+         <div className="w-16 h-16 rounded-full bg-white/10 premium-blur border border-white/20 flex items-center justify-center text-white scale-75 group-hover:scale-100 transition-transform">
+            <Play fill="currentColor" size={24} className="ml-1" />
+         </div>
       </div>
     </div>
-
-    {/* Hover Play Button */}
-    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-       <div className="w-16 h-16 rounded-full bg-white/10 premium-blur border border-white/20 flex items-center justify-center text-white scale-75 group-hover:scale-100 transition-transform">
-          <Play fill="currentColor" size={24} className="ml-1" />
-       </div>
-    </div>
-  </div>
-));
+  );
+});
 
 /**
  * Filter Bar
@@ -264,7 +282,11 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [collectionSearch, setCollectionSearch] = useState('');
-  
+  const [likedVideos, setLikedVideos] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('v14_liked') || '[]'); } catch { return []; }
+  });
+  const [playerLikeEnabled, setPlayerLikeEnabled] = useState(false);
+
   // State: Admin
   const [adminTab, setAdminTab] = useState('dashboard');
   const [activityLog, setActivityLog] = useState([]);
@@ -392,7 +414,29 @@ export default function App() {
     }
   }, [videos, inquiries, collections, settings]);
 
+  // Player like delay: enable buttons 10s after opening
+  useEffect(() => {
+    if (activeVideo) {
+      setPlayerLikeEnabled(false);
+      const timer = setTimeout(() => setPlayerLikeEnabled(true), 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeVideo]);
+
+  // Persist liked videos
+  useEffect(() => {
+    localStorage.setItem('v14_liked', JSON.stringify(likedVideos));
+  }, [likedVideos]);
+
   // Actions
+  const handleLike = useCallback((id) => {
+    setLikedVideos(prev => {
+      if (prev.includes(id)) return prev;
+      return [...prev, id];
+    });
+    setVideos(prev => prev.map(v => v.id === id ? { ...v, likes: (v.likes || 0) + 1 } : v));
+  }, []);
+
   const handleStatUpdate = useCallback((id, field) => {
     setVideos(prev => prev.map(v => v.id === id ? { ...v, [field]: (v[field] || 0) + 1 } : v));
   }, []);
@@ -498,12 +542,31 @@ export default function App() {
              onLoad={() => handleStatUpdate(activeVideo.id, 'views')}
            />
 
-           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-8 premium-blur border border-white/10 p-4 px-10 rounded-[2rem] z-[80] opacity-0 hover:opacity-100 transition-all duration-500 transform translate-y-4 hover:translate-y-0 shadow-3xl bg-black/40">
-              <button onClick={() => handleStatUpdate(activeVideo.id, 'likes')} className="flex items-center gap-3 text-white hover:text-green-400 font-black transition-colors">
+           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-8 premium-blur border border-white/10 p-4 px-10 rounded-[2rem] z-[80] transition-all duration-500 shadow-3xl bg-black/40">
+              <button
+                disabled={!playerLikeEnabled}
+                onClick={() => { if (playerLikeEnabled) { handleLike(activeVideo.id); } }}
+                className={`flex items-center gap-3 font-black transition-all duration-500 ${
+                  !playerLikeEnabled
+                    ? 'text-slate-600 cursor-not-allowed'
+                    : likedVideos.includes(activeVideo.id)
+                      ? 'text-rose-500'
+                      : 'text-white hover:text-green-400 cursor-pointer'
+                }`}
+              >
                 <ThumbsUp size={24}/> {activeVideo.likes || 0}
+                {!playerLikeEnabled && <span className="text-[9px] text-slate-600 uppercase tracking-widest ml-1">Изчакайте...</span>}
               </button>
               <div className="w-px h-8 bg-white/10"/>
-              <button onClick={() => handleStatUpdate(activeVideo.id, 'dislikes')} className="flex items-center gap-3 text-white hover:text-red-500 font-black transition-colors">
+              <button
+                disabled={!playerLikeEnabled}
+                onClick={() => { if (playerLikeEnabled) handleStatUpdate(activeVideo.id, 'dislikes'); }}
+                className={`flex items-center gap-3 font-black transition-all duration-500 ${
+                  !playerLikeEnabled
+                    ? 'text-slate-600 cursor-not-allowed'
+                    : 'text-white hover:text-red-500 cursor-pointer'
+                }`}
+              >
                 <ThumbsDown size={24}/> {activeVideo.dislikes || 0}
               </button>
            </div>
@@ -620,7 +683,7 @@ export default function App() {
             {/* Main Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-10">
               {filteredVideos.map(v => (
-                <VideoCard key={v.id} video={v} onClick={setActiveVideo} onLike={(id) => handleStatUpdate(id, 'likes')} primaryColor={settings.primaryColor} />
+                <VideoCard key={v.id} video={v} onClick={setActiveVideo} onLike={handleLike} isLiked={likedVideos.includes(v.id)} primaryColor={settings.primaryColor} />
               ))}
             </div>
 
