@@ -450,7 +450,7 @@ export default function App() {
     });
     setEditingVideoId(null);
     addLog(`Обновен филм: ${data.title}`, "success");
-    alert("✅ Промените са запазени успешно!");
+    alert("Успешно добавяне! Данните са запазени.");
   }, [addLog]);
 
   // ✅ ФИКС: handleDeleteVideo със директен localStorage sync
@@ -660,7 +660,7 @@ export default function App() {
                             link.href = URL.createObjectURL(blob);
                             link.download = `animationbg-backup-${new Date().toISOString().split('T')[0]}.json`;
                             link.click();
-                            alert('✅ Файлът е изтеглен! Сега го прехвърли на другото устройство.');
+                            alert('Файлът е изтеглен! Сега го прехвърли на другото устройство.');
                           }} className="flex flex-col items-center gap-4 p-8 rounded-[2rem] bg-green-600 hover:bg-green-500 transition-all">
                              <Download size={32}/>
                              <span className="font-black uppercase tracking-widest">ЕКСПОРТ</span>
@@ -683,10 +683,10 @@ export default function App() {
                                       localStorage.setItem('savedCollections', JSON.stringify(data.collections || []));
                                       localStorage.setItem('savedInquiries', JSON.stringify(data.inquiries || []));
                                       localStorage.setItem('siteSettings', JSON.stringify(data.settings));
-                                      alert('✅ Данните са заредени! Презареждане...');
+                                      alert('Данните са заредени! Презареждане...');
                                       window.location.reload();
                                     }
-                                  } catch { alert("❌ Грешен файл!"); }
+                                  } catch { alert("Грешен файл!"); }
                                 };
                                 reader.readAsText(file);
                              }} />
@@ -764,3 +764,4 @@ export default function App() {
 2. Изпрати файла на телефона (email/WhatsApp)
 3. Телефон: Импорт → Upload .json
 4. Всички филми са на телефона ✅
+
