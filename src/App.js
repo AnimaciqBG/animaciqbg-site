@@ -144,14 +144,13 @@ const ConfirmDialog = memo(({ isOpen, title, message, onConfirm, onCancel }) => 
  * Video Card
  */
 const VideoCard = memo(({ video, onClick, onLike, isLiked, primaryColor }) => {
-  const [justLiked, setJustLiked] = useState(false);
+  const [animating, setAnimating] = useState(false);
 
   const handleHeartClick = (e) => {
     e.stopPropagation();
-    if (isLiked) return;
-    setJustLiked(true);
+    setAnimating(true);
     onLike && onLike(video.id);
-    setTimeout(() => setJustLiked(false), 500);
+    setTimeout(() => setAnimating(false), 500);
   };
 
   return (
@@ -174,16 +173,16 @@ const VideoCard = memo(({ video, onClick, onLike, isLiked, primaryColor }) => {
         )}
       </div>
 
-      {/* Like Button */}
+      {/* Like Button - always visible on mobile, hover on desktop */}
       <button
         onClick={handleHeartClick}
-        className={`absolute top-4 right-4 z-10 p-2.5 premium-blur rounded-full border transition-all
+        className={`absolute top-4 right-4 z-10 p-3 premium-blur rounded-full border transition-all duration-300
           ${isLiked
             ? 'bg-rose-500/30 border-rose-500/40 text-rose-500 opacity-100'
-            : 'bg-black/40 border-white/10 text-white hover:text-rose-500 hover:bg-rose-500/20 hover:border-rose-500/30 opacity-0 group-hover:opacity-100'}
-          ${justLiked ? 'animate-heart-pop' : ''}`}
+            : 'bg-black/50 border-white/10 text-white/70 hover:text-rose-500 hover:bg-rose-500/20 hover:border-rose-500/30 md:opacity-0 md:group-hover:opacity-100 opacity-80'}
+          ${animating ? 'animate-heart-pop' : ''}`}
       >
-        <Heart size={16} fill={isLiked ? 'currentColor' : 'none'} />
+        <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} />
       </button>
 
       <div className="absolute inset-0 p-6 flex flex-col justify-end transform transition-transform duration-500 group-hover:translate-y-[-8px]">
@@ -197,7 +196,7 @@ const VideoCard = memo(({ video, onClick, onLike, isLiked, primaryColor }) => {
         </div>
         <h3 className="font-black text-white text-xl line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">{video.title}</h3>
 
-        <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 mt-4 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 mt-4 uppercase tracking-tighter md:opacity-0 md:group-hover:opacity-100 transition-opacity">
           <span className="flex items-center gap-1"><Eye size={12}/> {(video.views || 0).toLocaleString()}</span>
           <span className="flex items-center gap-1"><Heart size={12} className="text-rose-500" fill={isLiked ? '#f43f5e' : 'none'}/> {(video.likes || 0).toLocaleString()}</span>
         </div>
