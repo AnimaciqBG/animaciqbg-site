@@ -253,6 +253,7 @@ export default function App() {
   const [activityLog, setActivityLog] = useState([]);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [editingVideoId, setEditingVideoId] = useState(null);
+  const [editingCollection, setEditingCollection] = useState(null);
   const [toast, setToast] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null, type: null });
 
@@ -1101,30 +1102,49 @@ export default function App() {
                       e.preventDefault();
                       const d = new FormData(e.target);
                       const selected = Array.from(e.target.vids.selectedOptions).map(o => o.value);
-                      const newCol = { id: Date.now(), title: d.get('title'), description: d.get('desc'), videoIds: selected };
-                      setCollections(prev => [...prev, newCol]);
-                      showToast("Колекцията е създадена!", "success");
+                      if (editingCollection) {
+                        setCollections(prev => prev.map(c => c.id === editingCollection.id ? { ...c, title: d.get('title'), description: d.get('desc'), videoIds: selected } : c));
+                        showToast("Колекцията е обновена!", "success");
+                        setEditingCollection(null);
+                      } else {
+                        const newCol = { id: Date.now(), title: d.get('title'), description: d.get('desc'), videoIds: selected };
+                        setCollections(prev => [...prev, newCol]);
+                        showToast("Колекцията е създадена!", "success");
+                      }
                       e.target.reset();
                     }} className="space-y-8 bg-black/40 p-10 rounded-[3rem] border border-white/5">
+                       {editingCollection && (
+                         <div className="flex items-center justify-between bg-slate-800/50 p-4 rounded-2xl border border-white/10">
+                           <span className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2"><Edit size={16} style={{ color: settings.primaryColor }}/> Редактиране: {editingCollection.title}</span>
+                           <button type="button" onClick={() => setEditingCollection(null)} className="p-2 text-slate-400 hover:text-white transition-colors"><X size={18}/></button>
+                         </div>
+                       )}
                        <div className="grid md:grid-cols-2 gap-8">
                           <div className="space-y-2">
                             <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Име на Колекцията</label>
-                            <input name="title" required placeholder="напр. Класически Анимации" className="w-full bg-slate-950 border border-white/5 p-6 rounded-3xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                            <input name="title" required placeholder="напр. Класически Анимации" defaultValue={editingCollection?.title || ''} key={editingCollection?.id || 'new'} className="w-full bg-slate-950 border border-white/5 p-6 rounded-3xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
                           </div>
                           <div className="space-y-2">
                             <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Избери Видеа (Shift+Click)</label>
-                            <select name="vids" multiple required className="w-full bg-slate-950 border border-white/5 p-4 rounded-3xl text-white h-48 outline-none focus:ring-2 no-scrollbar" style={{'--tw-ring-color': settings.primaryColor}}>
+                            <select name="vids" multiple required defaultValue={editingCollection?.videoIds || []} key={(editingCollection?.id || 'new') + '-vids'} className="w-full bg-slate-950 border border-white/5 p-4 rounded-3xl text-white h-48 outline-none focus:ring-2 no-scrollbar" style={{'--tw-ring-color': settings.primaryColor}}>
                                {videos.map(v => <option key={v.id} value={v.id} className="p-3 border-b border-white/5 text-sm font-bold">{v.title}</option>)}
                             </select>
                           </div>
                        </div>
                        <div className="space-y-2">
                          <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Описание</label>
-                         <textarea name="desc" placeholder="Кратко представяне на колекцията..." className="w-full bg-slate-950 border border-white/5 p-6 rounded-3xl text-white outline-none h-32 resize-none"/>
+                         <textarea name="desc" placeholder="Кратко представяне на колекцията..." defaultValue={editingCollection?.description || ''} key={(editingCollection?.id || 'new') + '-desc'} className="w-full bg-slate-950 border border-white/5 p-6 rounded-3xl text-white outline-none h-32 resize-none"/>
                        </div>
-                       <button type="submit" className="w-full py-7 text-white font-black rounded-3xl uppercase tracking-[0.3em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all" style={{ backgroundColor: settings.primaryColor }}>
-                          СЪЗДАЙ КОЛЕКЦИЯ
-                       </button>
+                       <div className="flex gap-4">
+                         <button type="submit" className="flex-1 py-7 text-white font-black rounded-3xl uppercase tracking-[0.3em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all" style={{ backgroundColor: settings.primaryColor }}>
+                            {editingCollection ? 'ЗАПАЗИ ПРОМЕНИТЕ' : 'СЪЗДАЙ КОЛЕКЦИЯ'}
+                         </button>
+                         {editingCollection && (
+                           <button type="button" onClick={() => setEditingCollection(null)} className="px-10 py-7 text-slate-400 font-black rounded-3xl uppercase tracking-[0.3em] border border-white/10 hover:bg-slate-800 transition-all">
+                             ОТКАЗ
+                           </button>
+                         )}
+                       </div>
                     </form>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1133,9 +1153,14 @@ export default function App() {
                              <div>
                                 <div className="flex justify-between items-start mb-4">
                                    <h4 className="text-xl font-black text-white uppercase group-hover:text-red-500 transition-all">{col.title}</h4>
-                                   <button onClick={() => { setCollections(prev => prev.filter(c => c.id !== col.id)); showToast("Колекцията е премахната.", "warning"); }} className="p-3 text-slate-600 hover:text-rose-500 transition-colors">
-                                      <Trash2 size={20}/>
-                                   </button>
+                                   <div className="flex gap-1">
+                                     <button onClick={() => { setEditingCollection(col); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-3 text-slate-600 hover:text-blue-400 transition-colors">
+                                        <Edit size={20}/>
+                                     </button>
+                                     <button onClick={() => { setCollections(prev => prev.filter(c => c.id !== col.id)); showToast("Колекцията е премахната.", "warning"); }} className="p-3 text-slate-600 hover:text-rose-500 transition-colors">
+                                        <Trash2 size={20}/>
+                                     </button>
+                                   </div>
                                 </div>
                                 <p className="text-slate-500 text-sm font-medium line-clamp-2">{col.description}</p>
                              </div>
