@@ -207,8 +207,8 @@ const FilterBar = memo(({ activeFilter, onFilterChange, primaryColor }) => {
 
 // --- VISUAL EFFECTS LAYER ---
 const VisualEffectLayer = memo(({ type }) => {
-  if (!type || type === 'none') return null;
   const config = useMemo(() => {
+    if (!type || type === 'none') return null;
     switch(type) {
       case 'snow': return { char: <Snowflake size={16}/>, count: 30, class: 'animate-fall' };
       case 'rain': return { char: <CloudRain size={16}/>, count: 50, class: 'animate-rain' };
