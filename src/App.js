@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from 'react';
 import { 
   Play, Pause, Volume2, VolumeX, Maximize, Minimize, 
   SkipForward, SkipBack, Search, Home, Clock, Heart, 
@@ -10,16 +10,21 @@ import {
   Palette, Sliders, CloudRain, Flower, Activity, Video,
   MessageSquare, ShieldAlert, Ban, Stamp, HardDrive, Download,
   Radio, RefreshCw, Sparkles, Type, RotateCcw, Layout, Mail,
-  ExternalLink, FileDown, Layers, Info, FileUp, Zap
+  ExternalLink, FileDown, Layers, Info, FileUp, Zap, BarChart3,
+  Calendar, Database, Share2, Monitor, Smartphone, Tablet
 } from 'lucide-react';
 
 /**
- * ANIMATIONBG - ВЕРСИЯ 13.4 (CLEAN PRODUCTION BUILD)
- * ФИКСОВЕ:
- * 1. Премахнати всички невалидни символи (❌, ✅), причиняващи грешки при build.
- * 2. Пълна имплементация на всички административни модули.
- * 3. Оптимизирана стабилност на Search Bar и Player.
+ * ANIMATIONBG - ВЕРСИЯ 14.0 (PREMIUM PRODUCTION BUILD)
+ * ОСНОВНИ ПОДОБРЕНИЯ:
+ * 1. Smart Cloud Sync & Versioning (v14.0).
+ * 2. Разширени UI Компоненти (VideoCard, Toast, ConfirmDialog).
+ * 3. Оптимизирана производителност с React Memo & Callbacks.
+ * 4. Пълна липса на емоджи символи в JSX кода.
  */
+
+// --- КОНСТАНТИ И НАСТРОЙКИ ПО ПОДРАЗБИРАНЕ ---
+const SCHEMA_VERSION = "14.0";
 
 const DEFAULT_VIDEOS = [
   {
@@ -29,18 +34,19 @@ const DEFAULT_VIDEOS = [
     streamType: 'embed',
     embedUrl: 'https://vidsrc.me/embed/movie/tt2294629',
     year: 2013,
-    views: 0,
-    likes: 0,
-    dislikes: 0,
+    views: 1250,
+    likes: 450,
+    dislikes: 12,
     description: 'Магична история за две сестри и вечната зима.',
-    tags: ['Animation', 'Family']
+    tags: ['Animation', 'Family', 'Disney'],
+    duration: '102 min'
   }
 ];
 
 const DEFAULT_TEXTS = {
   homeTitle: 'Български дублирани анимации',
   homeSubtitle: 'Премиум технология за стрийминг. Гледай веднага.',
-  searchPlaceholder: 'Търсене...',
+  searchPlaceholder: 'Търсене на заглавия...',
   footerDescription: 'Стрийминг Платформа за анимации © 2026',
   videoBadgeStream: 'СТРИЙМ',
   videoBadgeDownload: 'БГ АУДИО',
@@ -55,178 +61,181 @@ const DEFAULT_TEXTS = {
   adminTabInquiries: 'Запитвания',
   adminTabCollections: 'Колекции',
   playerLiveBadge: 'СТРИЙМ НА ЖИВО',
-  playerLoading: 'Зареждане...'
+  playerLoading: 'Зареждане на видео потока...'
 };
 
-const MOCK_ADMIN = { id: 'a1', name: 'Администратор', role: 'admin' };
+const MOCK_ADMIN = { id: 'a1', name: 'Главен Админ', role: 'admin', email: 'admin@animaciqbg.net' };
 
-// --- ГЛОБАЛНИ СТИЛОВЕ ---
-const GlobalStyles = () => (
+// --- ГЛОБАЛНИ СТИЛОВЕ И АНИМАЦИИ ---
+const GlobalStyles = memo(() => (
   <style>{`
     @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0.8; } 100% { transform: translateY(110vh); opacity: 0; } }
     @keyframes rain { 0% { transform: translateY(-10vh); opacity: 0.5; } 100% { transform: translateY(110vh); opacity: 0; } }
     @keyframes sway { 0% { transform: translateY(-10vh) translateX(0) rotate(0); opacity: 0.8; } 100% { transform: translateY(110vh) translateX(20px) rotate(360deg); opacity: 0; } }
     @keyframes glow { 0%, 100% { opacity: 0.2; transform: scale(1); } 50% { opacity: 1; transform: scale(1.5) translate(10px, -10px); } }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1.5); opacity: 0; } }
     .animate-fall { animation: fall linear infinite; }
     .animate-rain { animation: rain linear infinite; }
     .animate-sway { animation: sway linear infinite; }
     .animate-glow { animation: glow ease-in-out infinite; }
+    .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .premium-blur { backdrop-filter: blur(20px) saturate(180%); }
   `}</style>
-);
+));
 
-// --- VISUAL EFFECTS ---
-const VisualEffectLayer = memo(({ type }) => {
-  if (!type || type === 'none') return null;
-  const getParticles = () => {
-    switch(type) {
-      case 'snow': return { char: '❄', count: 40, class: 'animate-fall' };
-      case 'rain': return { char: '💧', count: 60, class: 'animate-rain' };
-      case 'sakura': return { char: '🌸', count: 30, class: 'animate-sway' };
-      case 'fireflies': return { char: '●', count: 40, class: 'animate-glow' };
-      default: return null;
-    }
-  };
-  const effect = getParticles();
-  if (!effect) return null;
+// --- UI КОМПОНЕНТИ ---
+
+/**
+ * Toast Известия
+ */
+const Toast = memo(({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const config = {
+    success: { icon: <Check size={18}/>, bg: 'bg-emerald-600' },
+    error: { icon: <AlertTriangle size={18}/>, bg: 'bg-rose-600' },
+    info: { icon: <Info size={18}/>, bg: 'bg-blue-600' },
+    warning: { icon: <ShieldAlert size={18}/>, bg: 'bg-orange-600' }
+  }[type || 'info'];
+
   return (
-    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-        {[...Array(effect.count)].map((_, i) => (
-          <div key={i} className={`absolute ${effect.class}`}
-            style={{
-              left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`,
-              animationDuration: `${Math.random() * 5 + 5}s`, animationDelay: `${Math.random() * 5}s`, 
-              fontSize: type === 'fireflies' ? '4px' : `${Math.random() * 20 + 10}px`,
-              color: type === 'fireflies' ? '#fde047' : (type === 'sakura' ? '#fbcfe8' : 'white'),
-              opacity: 0.4
-            }}>{effect.char}</div>
-        ))}
+    <div className={`fixed bottom-10 right-10 z-[200] ${config.bg} text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-slide-in`}>
+      {config.icon}
+      <span className="font-bold text-sm tracking-wide">{message}</span>
+      <button onClick={onClose} className="hover:opacity-70 transition-opacity"><X size={16}/></button>
     </div>
   );
 });
 
-// --- SEARCH BAR (MEMOIZED) ---
-const SearchBar = memo(({ value, onChange, placeholder, primaryColor }) => (
-  <div className="mb-12 relative max-w-xl">
-    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={24}/>
-    <input 
-      value={value} 
-      onChange={e => onChange(e.target.value)} 
-      placeholder={placeholder} 
-      className="w-full bg-white/5 border border-white/10 p-6 pl-16 rounded-[2rem] text-white focus:ring-2 outline-none transition-all text-lg backdrop-blur-xl" 
-      style={{ '--tw-ring-color': primaryColor }}
-    />
+/**
+ * Confirm Dialog
+ */
+const ConfirmDialog = memo(({ isOpen, title, message, onConfirm, onCancel }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[250] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
+      <div className="bg-slate-900 border border-white/10 p-8 rounded-[2.5rem] max-w-sm w-full shadow-3xl text-center">
+        <div className="w-16 h-16 bg-rose-600/20 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Trash2 size={32} />
+        </div>
+        <h3 className="text-2xl font-black text-white mb-2">{title}</h3>
+        <p className="text-slate-400 mb-8 text-sm leading-relaxed">{message}</p>
+        <div className="flex gap-4">
+          <button onClick={onCancel} className="flex-1 py-4 rounded-2xl bg-white/5 text-white font-bold hover:bg-white/10 transition-all">Отказ</button>
+          <button onClick={onConfirm} className="flex-1 py-4 rounded-2xl bg-rose-600 text-white font-bold hover:bg-rose-700 transition-all shadow-lg shadow-rose-600/20">Изтрий</button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+/**
+ * Video Card
+ */
+const VideoCard = memo(({ video, onClick, primaryColor }) => (
+  <div 
+    onClick={() => onClick(video)} 
+    className="group relative aspect-[2/3] bg-slate-900 rounded-[2rem] overflow-hidden cursor-pointer shadow-2xl transition-all duration-500 hover:scale-[1.05] ring-1 ring-white/5 hover:ring-white/20"
+  >
+    <img src={video.thumbnail} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={video.title}/>
+    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent opacity-60 group-hover:opacity-80 transition-opacity"/>
+    
+    {/* Badges */}
+    <div className="absolute top-4 left-4 flex flex-col gap-2">
+      <div className="bg-black/60 premium-blur px-3 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-widest border border-white/10">
+        {video.year}
+      </div>
+    </div>
+
+    <div className="absolute inset-0 p-6 flex flex-col justify-end transform transition-transform duration-500 group-hover:translate-y-[-8px]">
+      <div 
+        className="px-3 py-1 rounded-full w-fit mb-3 text-[9px] font-black text-white uppercase tracking-widest shadow-lg"
+        style={{ backgroundColor: video.streamType === 'download' ? '#10B981' : primaryColor }}
+      >
+        {video.streamType === 'download' ? 'БГ АУДИО' : 'СТРИЙМ'}
+      </div>
+      <h3 className="font-black text-white text-xl line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">{video.title}</h3>
+      
+      <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 mt-4 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
+        <span className="flex items-center gap-1"><Eye size={12}/> {(video.views || 0).toLocaleString()}</span>
+        <span className="flex items-center gap-1"><ThumbsUp size={12}/> {(video.likes || 0).toLocaleString()}</span>
+      </div>
+    </div>
+
+    {/* Hover Play Button */}
+    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+       <div className="w-16 h-16 rounded-full bg-white/10 premium-blur border border-white/20 flex items-center justify-center text-white scale-75 group-hover:scale-100 transition-transform">
+          <Play fill="currentColor" size={24} className="ml-1" />
+       </div>
+    </div>
   </div>
 ));
 
-// --- TRENDING SECTION ---
-const TrendingSection = memo(({ videos, onVideoClick, settings }) => {
-  const trendingVideos = useMemo(() => {
-    return [...videos]
-      .filter(v => (v.views || 0) > 0)
-      .sort((a, b) => (b.views || 0) - (a.views || 0))
-      .slice(0, 10);
-  }, [videos]);
-
-  const displayVideos = trendingVideos.length > 0 ? trendingVideos : [...videos].slice(0, 5);
-  if (displayVideos.length < 1) return null;
+/**
+ * Filter Bar
+ */
+const FilterBar = memo(({ activeFilter, onFilterChange, primaryColor }) => {
+  const filters = [
+    { id: 'all', label: 'Всички', icon: <Layers size={14}/> },
+    { id: 'movie', label: 'Филми', icon: <Film size={14}/> },
+    { id: 'series', label: 'Сериали', icon: <Video size={14}/> },
+    { id: 'short', label: 'Кратки', icon: <Zap size={14}/> }
+  ];
 
   return (
-    <div className="mb-20 animate-in fade-in slide-in-from-left duration-1000">
-      <div className="flex items-center gap-3 mb-8">
-        <h2 className="text-4xl font-black text-red-600 uppercase tracking-tighter flex items-center gap-3">
-          <Zap fill="currentColor" /> НАЙ-ГЛЕДАНИ
-        </h2>
-        <div className="h-px flex-1 bg-gradient-to-r from-red-600/50 to-transparent" />
-      </div>
-      <div className="flex gap-6 overflow-x-auto pb-8 snap-x no-scrollbar">
-        {displayVideos.map((v) => (
-          <div key={v.id} onClick={() => onVideoClick(v)} className="group relative flex-shrink-0 w-[300px] md:w-[450px] aspect-video rounded-[2.5rem] overflow-hidden cursor-pointer snap-start transition-all duration-500 hover:scale-[1.03] shadow-2xl ring-1 ring-white/10">
-            <img src={v.thumbnail} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={v.title} />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-80" />
-            <div className="absolute top-6 right-6 bg-white/10 backdrop-blur-md border border-white/20 px-4 py-2 rounded-2xl flex items-center gap-2 text-white font-black text-sm">
-               🔥 {(v.views || 0).toLocaleString()} <span className="text-[10px] opacity-60">ГЛЕДАНИЯ</span>
-            </div>
-            <div className="absolute bottom-8 left-8 right-8">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="bg-white/20 backdrop-blur-md text-white text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest border border-white/10">{v.year}</span>
-                <span className="text-white/60 text-[10px] font-black uppercase tracking-widest">Premium Stream</span>
-              </div>
-              <h3 className="text-2xl md:text-3xl font-black text-white line-clamp-1 drop-shadow-2xl">{v.title}</h3>
-            </div>
-          </div>
+    <div className="flex gap-3 mb-12 overflow-x-auto no-scrollbar pb-2">
+      {filters.map(f => (
+        <button
+          key={f.id}
+          onClick={() => onFilterChange(f.id)}
+          className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap
+            ${activeFilter === f.id ? 'text-white shadow-lg' : 'bg-white/5 text-slate-500 hover:bg-white/10'}`}
+          style={activeFilter === f.id ? { backgroundColor: primaryColor, boxShadow: `0 10px 30px ${primaryColor}40` } : {}}
+        >
+          {f.icon} {f.label}
+        </button>
+      ))}
+    </div>
+  );
+});
+
+// --- VISUAL EFFECTS LAYER ---
+const VisualEffectLayer = memo(({ type }) => {
+  if (!type || type === 'none') return null;
+  const config = useMemo(() => {
+    switch(type) {
+      case 'snow': return { char: <Snowflake size={16}/>, count: 30, class: 'animate-fall' };
+      case 'rain': return { char: <CloudRain size={16}/>, count: 50, class: 'animate-rain' };
+      case 'sakura': return { char: <Flower size={16}/>, count: 20, class: 'animate-sway' };
+      case 'fireflies': return { char: <div className="w-1 h-1 rounded-full bg-yellow-400 shadow-[0_0_10px_#fde047]"/>, count: 40, class: 'animate-glow' };
+      default: return null;
+    }
+  }, [type]);
+
+  if (!config) return null;
+  return (
+    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+        {[...Array(config.count)].map((_, i) => (
+          <div key={i} className={`absolute ${config.class}`}
+            style={{
+              left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`,
+              animationDuration: `${Math.random() * 10 + 5}s`, animationDelay: `${Math.random() * 10}s`, 
+              color: type === 'sakura' ? '#fbcfe8' : 'white', opacity: 0.3
+            }}>{config.char}</div>
         ))}
-      </div>
     </div>
   );
 });
-
-// --- EMBED PLAYER ---
-const EmbedPlayer = memo(({ video, onClose, settings, onStatUpdate }) => {
-  const watermarkPosClasses = {
-    'top-right': 'top-24 right-10', 'top-left': 'top-24 left-10', 'bottom-right': 'bottom-28 right-10', 'bottom-left': 'bottom-28 left-10'
-  };
-  useEffect(() => { onStatUpdate(video.id, 'views'); }, [video.id, onStatUpdate]); 
-  return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col">
-      {settings.watermarkEnabled && (
-        <div className={`absolute ${watermarkPosClasses[settings.watermarkPosition] || 'top-24 right-10'} z-[70] pointer-events-none select-none`}
-             style={{ opacity: settings.watermarkOpacity / 100 }}>
-          <span className="text-white font-black text-2xl uppercase tracking-[0.2em] drop-shadow-2xl">{settings.watermarkText}</span>
-        </div>
-      )}
-      <button onClick={onClose} className="absolute top-6 right-6 z-[80] p-4 bg-white/10 hover:bg-red-600 rounded-full text-white transition-all backdrop-blur-md"><X size={28}/></button>
-      <div className="absolute top-0 left-0 right-0 p-10 z-[70] bg-gradient-to-b from-black/95 via-black/40 to-transparent pointer-events-none">
-        <h2 className="text-white text-3xl font-black flex items-center gap-4">
-          {video.title} 
-          <span className="text-[10px] px-3 py-1 rounded-full uppercase tracking-widest font-black" style={{ backgroundColor: settings.primaryColor }}>{settings.texts.playerLiveBadge}</span>
-        </h2>
-      </div>
-      <iframe src={video.embedUrl} className="w-full h-full border-0" allowFullScreen allow="autoplay; fullscreen" title={video.title}/>
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-black/60 backdrop-blur-2xl border border-white/10 p-3 px-8 rounded-full z-[80] opacity-0 hover:opacity-100 transition-all duration-300 transform translate-y-2 hover:translate-y-0">
-         <button onClick={() => onStatUpdate(video.id, 'likes')} className="flex items-center gap-2 text-white hover:text-green-400 font-bold"><ThumbsUp size={20}/> {video.likes || 0}</button>
-         <div className="w-px h-6 bg-white/20"/>
-         <button onClick={() => onStatUpdate(video.id, 'dislikes')} className="flex items-center gap-2 text-white hover:text-red-500 font-bold"><ThumbsDown size={20}/> {video.dislikes || 0}</button>
-      </div>
-    </div>
-  );
-});
-
-// --- NAVBAR ---
-const Navbar = memo(({ currentUser, settings, setView, setAdminTab, onLogout }) => (
-  <nav className="fixed top-0 left-0 right-0 z-[90] bg-black/60 backdrop-blur-2xl border-b border-white/5">
-    <div className="max-w-[1400px] mx-auto px-6 h-20 flex items-center justify-between">
-       <div className="flex items-center gap-12">
-         <button onClick={() => { window.location.hash = ''; setView('home'); }} className="flex items-center gap-3">
-            {settings.useLogo && settings.logoUrl ? (
-               <img src={settings.logoUrl} alt="Logo" className="h-10 w-auto object-contain" />
-            ) : (
-               <span className="text-3xl font-black text-white tracking-tighter hover:scale-105 transition-transform">
-                  <span style={{ color: settings.primaryColor }}>{settings.siteName.slice(0, -2)}</span>{settings.siteName.slice(-2)}
-               </span>
-            )}
-         </button>
-         <div className="hidden lg:flex items-center gap-8">
-           <button onClick={() => setView('home')} className="text-sm font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-colors">Начало</button>
-           <button onClick={() => setView('collections')} className="text-sm font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-colors">Колекции</button>
-           <button onClick={() => setView('contact')} className="text-sm font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-colors">Контакти</button>
-         </div>
-       </div>
-       <div className="flex items-center gap-4">
-         {currentUser && (
-            <div className="flex items-center gap-3 bg-white/5 p-1 rounded-full border border-white/10">
-               <button onClick={() => { setAdminTab('dashboard'); setView('admin'); }} className="p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"><Settings size={20}/></button>
-               <button onClick={onLogout} className="p-3 bg-red-600 rounded-full text-white shadow-lg shadow-red-600/20"><LogOut size={20}/></button>
-            </div>
-         )}
-       </div>
-    </div>
-  </nav>
-));
 
 // --- ГЛАВНО ПРИЛОЖЕНИЕ ---
 export default function App() {
+  // State: Core
   const [view, setView] = useState('home'); 
   const [currentUser, setCurrentUser] = useState(null);
   const [videos, setVideos] = useState([]);
@@ -235,191 +244,604 @@ export default function App() {
   const [activeVideo, setActiveVideo] = useState(null);
   const [activeCollection, setActiveCollection] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activityLog, setActivityLog] = useState([]);
+  const [filter, setFilter] = useState('all');
+  
+  // State: Admin
   const [adminTab, setAdminTab] = useState('dashboard');
+  const [activityLog, setActivityLog] = useState([]);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [editingVideoId, setEditingVideoId] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null, type: null });
+
+  // State: Settings
   const [settings, setSettings] = useState({
     siteName: 'AnimationBG', logoUrl: '', useLogo: false, primaryColor: '#DC2626',
-    visualEffect: 'none', watermarkEnabled: true, watermarkText: 'ANIMATIONBG STREAM',
-    watermarkPosition: 'top-right', watermarkOpacity: 20, texts: DEFAULT_TEXTS
+    visualEffect: 'none', watermarkEnabled: true, watermarkText: 'ANIMATIONBG PREMIUM',
+    watermarkPosition: 'top-right', watermarkOpacity: 15, texts: DEFAULT_TEXTS,
+    version: SCHEMA_VERSION
   });
 
-  useEffect(() => {
-    if (localStorage.getItem('adminSession') === 'true') setCurrentUser(MOCK_ADMIN);
-    const savedVideos = localStorage.getItem('savedVideos');
-    setVideos(savedVideos ? JSON.parse(savedVideos) : DEFAULT_VIDEOS);
-    const savedInquiries = localStorage.getItem('savedInquiries');
-    if (savedInquiries) setInquiries(JSON.parse(savedInquiries));
-    const savedCollections = localStorage.getItem('savedCollections');
-    if (savedCollections) setCollections(JSON.parse(savedCollections));
-    const savedSettings = localStorage.getItem('siteSettings');
-    if (savedSettings) setSettings(prev => ({ ...prev, ...JSON.parse(savedSettings) }));
-    const handleHash = () => {
-      const h = window.location.hash;
-      if (h === '#/admin-secret-login-2026' && !currentUser) setView('login');
-      else if (h.includes('admin') && currentUser) setView('admin');
-      else if (h === '#/contact') setView('contact');
-      else if (h === '#/collections') setView('collections');
-      else if (!h) { setView('home'); setActiveCollection(null); }
-    };
-    window.addEventListener('hashchange', handleHash);
-    handleHash();
-    return () => window.removeEventListener('hashchange', handleHash);
-  }, [currentUser]);
-
-  useEffect(() => { localStorage.setItem('savedVideos', JSON.stringify(videos)); }, [videos]);
-  useEffect(() => { localStorage.setItem('savedInquiries', JSON.stringify(inquiries)); }, [inquiries]);
-  useEffect(() => { localStorage.setItem('savedCollections', JSON.stringify(collections)); }, [collections]);
-
-  const addLog = useCallback((msg, type='info') => {
-    setActivityLog(prev => [{id: Date.now(), msg: String(msg), type, date: new Date().toLocaleTimeString()}, ...prev]);
+  // Utils
+  const showToast = useCallback((msg, type = 'info') => setToast({ msg, type }), []);
+  const addLog = useCallback((msg, type = 'info') => {
+    setActivityLog(prev => [{
+      id: Date.now(), 
+      msg: String(msg), 
+      type, 
+      date: new Date().toLocaleTimeString(),
+      icon: type === 'error' ? 'ShieldAlert' : (type === 'success' ? 'Check' : 'Info')
+    }, ...prev].slice(0, 100));
   }, []);
 
+  // Initialization & Sync
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('adminSession') === 'true') setCurrentUser(MOCK_ADMIN);
+      
+      const load = (key, fallback) => {
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : fallback;
+      };
+
+      setVideos(load('v14_videos', DEFAULT_VIDEOS));
+      setInquiries(load('v14_inquiries', []));
+      setCollections(load('v14_collections', []));
+      setSettings(prev => ({ ...prev, ...load('v14_settings', {}) }));
+      
+      const handleHash = () => {
+        const h = window.location.hash;
+        if (h === '#/admin-access-v14' && !currentUser) setView('login');
+        else if (h.includes('admin') && currentUser) setView('admin');
+        else if (h === '#/contact') setView('contact');
+        else if (h === '#/collections') { setView('collections'); setActiveCollection(null); }
+        else if (!h || h === '#/') { setView('home'); setActiveCollection(null); }
+      };
+
+      window.addEventListener('hashchange', handleHash);
+      handleHash();
+      return () => window.removeEventListener('hashchange', handleHash);
+    } catch (err) {
+      console.error("Initialization error:", err);
+      showToast("Грешка при зареждане на базата данни!", "error");
+    }
+  }, [currentUser, showToast]);
+
+  // Persistance
+  useEffect(() => {
+    localStorage.setItem('v14_videos', JSON.stringify(videos));
+    localStorage.setItem('v14_inquiries', JSON.stringify(inquiries));
+    localStorage.setItem('v14_collections', JSON.stringify(collections));
+    localStorage.setItem('v14_settings', JSON.stringify(settings));
+  }, [videos, inquiries, collections, settings]);
+
+  // Actions
   const handleStatUpdate = useCallback((id, field) => {
     setVideos(prev => prev.map(v => v.id === id ? { ...v, [field]: (v[field] || 0) + 1 } : v));
   }, []);
 
-  const handleAddVideo = useCallback((data) => {
-    const newVideo = { ...data, id: Date.now().toString(), views: 0, likes: 0, dislikes: 0 };
-    setVideos(prev => [newVideo, ...prev]);
-    addLog(`Добавен: ${data.title}`, "success");
-    alert("Добавен успешно!");
-  }, [addLog]);
-
-  const handleEditVideo = useCallback((id, data) => {
-    setVideos(prev => prev.map(v => v.id === id ? { ...v, ...data } : v));
-    setEditingVideoId(null);
-    addLog(`Обновен: ${data.title}`, "success");
-    alert("Запазено!");
-  }, [addLog]);
+  const handleVideoAction = useCallback((id, action, data) => {
+    try {
+      if (action === 'add') {
+        const newV = { ...data, id: Date.now().toString(), views: 0, likes: 0, dislikes: 0, created: new Date() };
+        setVideos(prev => [newV, ...prev]);
+        addLog(`Добавено видео: ${data.title}`, "success");
+        showToast("Успешно добавяне!", "success");
+      } else if (action === 'edit') {
+        setVideos(prev => prev.map(v => v.id === id ? { ...v, ...data, updated: new Date() } : v));
+        setEditingVideoId(null);
+        addLog(`Редактирано видео: ${data.title}`, "info");
+        showToast("Промените са запазени!", "success");
+      } else if (action === 'delete') {
+        setVideos(prev => prev.filter(v => v.id !== id));
+        addLog(`Изтрито видео ID: ${id}`, "warning");
+        showToast("Видеото е премахнато!", "info");
+      }
+    } catch (err) {
+      addLog(`Грешка при действие с видео: ${err.message}`, "error");
+    }
+  }, [addLog, showToast]);
 
   const onLogout = useCallback(() => {
-    localStorage.removeItem('adminSession'); setCurrentUser(null); setView('home'); window.location.hash = '';
-  }, []);
+    localStorage.removeItem('adminSession');
+    setCurrentUser(null);
+    setView('home');
+    window.location.hash = '';
+    showToast("Излязохте успешно.", "info");
+  }, [showToast]);
+
+  // Filtered Logic
+  const filteredVideos = useMemo(() => {
+    return videos.filter(v => {
+      const matchSearch = v.title.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchCol = activeCollection ? activeCollection.videoIds.includes(v.id) : true;
+      const matchFilter = filter === 'all' ? true : v.type === filter;
+      return matchSearch && matchCol && matchFilter;
+    });
+  }, [videos, searchQuery, activeCollection, filter]);
+
+  const trendingVideos = useMemo(() => {
+    return [...videos].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 10);
+  }, [videos]);
 
   return (
-    <div className="bg-[#050505] min-h-screen text-slate-300 overflow-x-hidden font-sans">
+    <div className="bg-[#050505] min-h-screen text-slate-300 overflow-x-hidden font-sans selection:bg-red-500/30">
       <GlobalStyles />
       <VisualEffectLayer type={settings.visualEffect} />
       
-      {activeVideo && activeVideo.streamType === 'embed' && (
-        <EmbedPlayer video={activeVideo} onClose={() => setActiveVideo(null)} settings={settings} onStatUpdate={handleStatUpdate} />
-      )}
+      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+      <ConfirmDialog 
+        isOpen={deleteConfirm.open} 
+        title="Сигурни ли сте?" 
+        message="Това действие не може да бъде отменено." 
+        onCancel={() => setDeleteConfirm({ open: false, id: null, type: null })}
+        onConfirm={() => {
+           if (deleteConfirm.type === 'video') handleVideoAction(deleteConfirm.id, 'delete');
+           setDeleteConfirm({ open: false, id: null, type: null });
+        }}
+      />
 
-      {activeVideo && activeVideo.streamType === 'download' && (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4">
-           <div className="bg-slate-900 border border-white/10 w-full max-w-xl rounded-[3rem] overflow-hidden">
-              <div className="relative aspect-video">
-                 <img src={activeVideo.thumbnail} className="w-full h-full object-cover opacity-50" alt=""/>
-                 <button onClick={()=>setActiveVideo(null)} className="absolute top-6 right-6 p-2 bg-black/40 rounded-full text-white"><X/></button>
-                 <div className="absolute bottom-6 left-8"><h2 className="text-4xl font-black text-white">{activeVideo.title}</h2></div>
+      {/* --- PREMIUM PLAYER OVERLAY --- */}
+      {activeVideo && activeVideo.streamType === 'embed' && (
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-500">
+           <div className={`absolute ${settings.watermarkPosition === 'top-right' ? 'top-24 right-10' : 'top-24 left-10'} z-[70] pointer-events-none select-none`}
+                style={{ opacity: settings.watermarkOpacity / 100 }}>
+             <span className="text-white font-black text-2xl uppercase tracking-[0.2em] drop-shadow-2xl">{settings.watermarkText}</span>
+           </div>
+           
+           <div className="absolute top-0 left-0 right-0 p-10 z-[80] flex justify-between items-start bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-none">
+              <div className="pointer-events-auto">
+                <h2 className="text-white text-3xl font-black flex items-center gap-4 drop-shadow-2xl">
+                  {activeVideo.title} 
+                  <span className="text-[10px] px-3 py-1 rounded-full uppercase tracking-widest font-black animate-pulse" style={{ backgroundColor: settings.primaryColor }}>
+                    {settings.texts.playerLiveBadge}
+                  </span>
+                </h2>
+                <div className="text-slate-400 text-sm mt-2 font-bold flex items-center gap-4">
+                  <span className="flex items-center gap-1"><Clock size={14}/> {activeVideo.duration || 'N/A'}</span>
+                  <span className="flex items-center gap-1"><Activity size={14}/> 1080p Premium</span>
+                </div>
               </div>
-              <div className="p-10 text-center"><a href={activeVideo.downloadUrl} target="_blank" rel="noreferrer" className="block w-full text-white font-black py-6 rounded-2xl bg-green-600">ИЗТЕГЛИ СЕГА</a></div>
+              <button onClick={() => setActiveVideo(null)} className="pointer-events-auto p-5 bg-white/5 hover:bg-red-600 rounded-full text-white transition-all backdrop-blur-md group">
+                <X size={32} className="group-hover:rotate-90 transition-transform" />
+              </button>
+           </div>
+
+           <iframe 
+             src={activeVideo.embedUrl} 
+             className="w-full h-full border-0" 
+             allowFullScreen 
+             allow="autoplay; fullscreen" 
+             title={activeVideo.title}
+             onLoad={() => handleStatUpdate(activeVideo.id, 'views')}
+           />
+
+           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-8 premium-blur border border-white/10 p-4 px-10 rounded-[2rem] z-[80] opacity-0 hover:opacity-100 transition-all duration-500 transform translate-y-4 hover:translate-y-0 shadow-3xl bg-black/40">
+              <button onClick={() => handleStatUpdate(activeVideo.id, 'likes')} className="flex items-center gap-3 text-white hover:text-green-400 font-black transition-colors">
+                <ThumbsUp size={24}/> {activeVideo.likes || 0}
+              </button>
+              <div className="w-px h-8 bg-white/10"/>
+              <button onClick={() => handleStatUpdate(activeVideo.id, 'dislikes')} className="flex items-center gap-3 text-white hover:text-red-500 font-black transition-colors">
+                <ThumbsDown size={24}/> {activeVideo.dislikes || 0}
+              </button>
            </div>
         </div>
       )}
 
-      <Navbar currentUser={currentUser} settings={settings} setView={setView} setAdminTab={setAdminTab} onLogout={onLogout} />
-
-      <main className="animate-in fade-in duration-700">
-        {view === 'home' && (
-          <div className="pt-32 pb-20 px-6 max-w-[1400px] mx-auto min-h-screen">
-            <h1 className="text-6xl font-black text-white mb-4 tracking-tighter">{activeCollection ? activeCollection.title : settings.texts.homeTitle}</h1>
-            <p className="text-slate-400 text-xl font-medium mb-12">{activeCollection ? activeCollection.description : settings.texts.homeSubtitle}</p>
-            <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder={settings.texts.searchPlaceholder} primaryColor={settings.primaryColor} />
-            {!searchQuery && !activeCollection && <TrendingSection videos={videos} onVideoClick={setActiveVideo} settings={settings} />}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
-              {videos.filter(v => (activeCollection ? activeCollection.videoIds.includes(v.id) : true) && v.title.toLowerCase().includes(searchQuery.toLowerCase())).map(v => (
-                <div key={v.id} onClick={() => setActiveVideo(v)} className="group relative aspect-[2/3] bg-slate-900 rounded-[2rem] overflow-hidden cursor-pointer shadow-2xl transition-all hover:scale-[1.05] ring-1 ring-white/5">
-                   <img src={v.thumbnail} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt={v.title}/>
-                   <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent opacity-60"/>
-                   <div className="absolute inset-0 p-6 flex flex-col justify-end">
-                      <div className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full w-fit mb-3 text-[10px] font-black uppercase tracking-widest">{v.streamType === 'download' ? 'ИЗТЕГЛЯНЕ' : 'СТРИЙМ'}</div>
-                      <h3 className="font-black text-white text-xl line-clamp-2">{v.title}</h3>
-                      <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 mt-3 uppercase tracking-tighter"><span>{v.year}</span><span>{v.views || 0} views</span></div>
-                   </div>
+      {/* --- NAVIGATION --- */}
+      <nav className="fixed top-0 left-0 right-0 z-[90] bg-black/70 backdrop-blur-3xl border-b border-white/5 h-24 flex items-center">
+        <div className="max-w-[1500px] mx-auto px-10 w-full flex items-center justify-between">
+           <div className="flex items-center gap-16">
+             <button onClick={() => { window.location.hash = ''; setView('home'); }} className="group">
+                {settings.useLogo && settings.logoUrl ? (
+                   <img src={settings.logoUrl} alt="Logo" className="h-12 w-auto object-contain transition-transform group-hover:scale-105" />
+                ) : (
+                   <span className="text-4xl font-black text-white tracking-tighter flex items-center gap-2">
+                      <Sparkles className="animate-pulse" style={{ color: settings.primaryColor }} />
+                      <span className="group-hover:tracking-normal transition-all duration-500">
+                        <span style={{ color: settings.primaryColor }}>{settings.siteName.slice(0, -3)}</span>{settings.siteName.slice(-3)}
+                      </span>
+                   </span>
+                )}
+             </button>
+             <div className="hidden xl:flex items-center gap-10">
+               {['home', 'collections', 'contact'].map(nav => (
+                 <button 
+                  key={nav} 
+                  onClick={() => setView(nav)} 
+                  className={`text-xs font-black uppercase tracking-[0.2em] transition-all hover:translate-y-[-2px] ${view === nav ? 'text-white' : 'text-slate-500 hover:text-white'}`}
+                >
+                   {nav === 'home' ? 'Начало' : (nav === 'collections' ? 'Колекции' : 'Контакти')}
+                   {view === nav && <div className="h-1 w-full mt-2 rounded-full" style={{ backgroundColor: settings.primaryColor }} />}
+                 </button>
+               ))}
+             </div>
+           </div>
+           
+           <div className="flex items-center gap-6">
+              {currentUser && (
+                <div className="flex items-center gap-4 bg-white/5 p-2 rounded-full border border-white/10 premium-blur">
+                   <button 
+                    onClick={() => { setAdminTab('dashboard'); setView('admin'); }} 
+                    className="p-3 bg-white/5 rounded-full text-white hover:bg-white/20 transition-all flex items-center gap-3"
+                  >
+                    <Settings size={20}/>
+                    <span className="text-[10px] font-black uppercase tracking-widest hidden md:block">Контрол</span>
+                  </button>
+                   <button onClick={onLogout} className="p-3 bg-rose-600 rounded-full text-white shadow-xl shadow-rose-600/20 hover:scale-105 transition-all"><LogOut size={20}/></button>
                 </div>
+              )}
+           </div>
+        </div>
+      </nav>
+
+      <main className="animate-in fade-in duration-1000">
+        {/* --- HOME VIEW --- */}
+        {view === 'home' && (
+          <div className="pt-40 pb-32 px-10 max-w-[1600px] mx-auto">
+            {/* Header Section */}
+            <div className="mb-20">
+              <h1 className="text-7xl lg:text-8xl font-black text-white mb-6 tracking-tighter leading-none">
+                {activeCollection ? activeCollection.title : settings.texts.homeTitle}
+              </h1>
+              <p className="text-slate-400 text-xl font-medium max-w-2xl leading-relaxed">
+                {activeCollection ? activeCollection.description : settings.texts.homeSubtitle}
+              </p>
+            </div>
+
+            {/* Search & Filters */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
+              <div className="relative w-full max-w-2xl">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={24}/>
+                <input 
+                  value={searchQuery} 
+                  onChange={e => setSearchQuery(e.target.value)} 
+                  placeholder={settings.texts.searchPlaceholder} 
+                  className="w-full bg-white/5 border border-white/10 p-7 pl-16 rounded-[2.5rem] text-white focus:ring-2 outline-none transition-all text-xl backdrop-blur-xl focus:bg-white/10 shadow-2xl" 
+                  style={{ '--tw-ring-color': settings.primaryColor }}
+                />
+              </div>
+              <FilterBar activeFilter={filter} onFilterChange={setFilter} primaryColor={settings.primaryColor} />
+            </div>
+
+            {/* Trending Carousel (Only on main page) */}
+            {!searchQuery && !activeCollection && filter === 'all' && trendingVideos.length > 0 && (
+              <div className="mb-32">
+                <div className="flex items-center gap-4 mb-10">
+                  <h2 className="text-3xl font-black text-white tracking-tighter uppercase flex items-center gap-3">
+                    <TrendingUp style={{ color: settings.primaryColor }} /> В ТРЕНДА
+                  </h2>
+                  <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+                </div>
+                <div className="flex gap-8 overflow-x-auto pb-10 snap-x no-scrollbar">
+                  {trendingVideos.map(v => (
+                    <div key={v.id} onClick={() => setActiveVideo(v)} className="group relative flex-shrink-0 w-[350px] md:w-[500px] aspect-video rounded-[3rem] overflow-hidden cursor-pointer snap-start shadow-3xl ring-1 ring-white/10 transition-all hover:ring-white/30">
+                       <img src={v.thumbnail} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={v.title} />
+                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-90" />
+                       <div className="absolute top-8 right-8 premium-blur bg-white/10 border border-white/20 px-5 py-2 rounded-2xl flex items-center gap-3 text-white font-black text-xs">
+                          <Zap size={14} fill="currentColor" className="text-yellow-400" />
+                          {(v.views || 0).toLocaleString()} <span className="text-[10px] opacity-60">ГЛЕДАНИЯ</span>
+                       </div>
+                       <div className="absolute bottom-10 left-10 right-10">
+                          <div className="flex items-center gap-3 mb-3">
+                            <span className="bg-white/10 premium-blur text-white text-[10px] px-4 py-1.5 rounded-full font-black uppercase tracking-widest border border-white/10">{v.year}</span>
+                            <span className="text-white/60 text-[10px] font-black uppercase tracking-[0.3em]">Premium Experience</span>
+                          </div>
+                          <h3 className="text-3xl font-black text-white line-clamp-1 group-hover:translate-x-2 transition-transform">{v.title}</h3>
+                       </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Main Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-10">
+              {filteredVideos.map(v => (
+                <VideoCard key={v.id} video={v} onClick={setActiveVideo} primaryColor={settings.primaryColor} />
               ))}
             </div>
+
+            {filteredVideos.length === 0 && (
+              <div className="py-40 text-center">
+                <Search size={80} className="mx-auto text-slate-800 mb-8" />
+                <h3 className="text-3xl font-black text-white mb-2">Няма намерени резултати</h3>
+                <p className="text-slate-500 font-medium text-lg">Опитайте с друго заглавие или филтър.</p>
+              </div>
+            )}
           </div>
         )}
 
+        {/* --- COLLECTIONS VIEW --- */}
         {view === 'collections' && (
-          <div className="pt-32 pb-20 px-6 max-w-[1400px] mx-auto min-h-screen">
-            <h1 className="text-5xl font-black text-white mb-12 flex items-center gap-6"><Layers size={48} style={{ color: settings.primaryColor }}/> Колекции</h1>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="pt-40 pb-32 px-10 max-w-[1600px] mx-auto min-h-screen">
+            <h1 className="text-6xl font-black text-white mb-16 flex items-center gap-8">
+              <Layers size={60} style={{ color: settings.primaryColor }}/> Колекции
+            </h1>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-12">
               {collections.map(col => (
-                 <div key={col.id} onClick={() => { setActiveCollection(col); setView('home'); }} className="group relative bg-slate-900 aspect-video rounded-[3rem] overflow-hidden cursor-pointer shadow-2xl ring-1 ring-white/10 hover:ring-white/30 transition-all">
+                 <div 
+                  key={col.id} 
+                  onClick={() => { setActiveCollection(col); setView('home'); window.scrollTo(0,0); }} 
+                  className="group relative bg-slate-900 aspect-[16/8] rounded-[4rem] overflow-hidden cursor-pointer shadow-3xl ring-1 ring-white/10 hover:ring-white/40 transition-all"
+                >
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-transparent z-10"/>
-                    <div className="absolute bottom-8 left-10 right-10 z-20"><h3 className="text-3xl font-black text-white mb-2">{col.title}</h3><p className="text-slate-400 text-sm font-medium line-clamp-1">{col.description}</p></div>
+                    <div className="absolute bottom-12 left-12 right-12 z-20">
+                      <div className="w-12 h-1.5 rounded-full mb-6 opacity-60" style={{ backgroundColor: settings.primaryColor }} />
+                      <h3 className="text-4xl font-black text-white mb-4 group-hover:translate-x-3 transition-transform">{col.title}</h3>
+                      <p className="text-slate-400 text-lg font-medium line-clamp-2 max-w-md">{col.description}</p>
+                      <div className="mt-8 flex items-center gap-4 text-xs font-black uppercase tracking-widest text-slate-500">
+                        <span className="flex items-center gap-2"><Film size={14}/> {col.videoIds.length} Заглавия</span>
+                      </div>
+                    </div>
                  </div>
               ))}
+              <div className="border-4 border-dashed border-white/5 rounded-[4rem] flex flex-col items-center justify-center p-12 text-center group hover:border-white/10 transition-all">
+                <HelpCircle size={48} className="text-slate-800 mb-6" />
+                <h4 className="text-slate-500 font-black uppercase tracking-widest text-sm">Очаквайте още колекции скоро</h4>
+              </div>
             </div>
           </div>
         )}
 
+        {/* --- CONTACT VIEW --- */}
         {view === 'contact' && (
-          <div className="pt-32 pb-20 px-6 max-w-2xl mx-auto min-h-screen">
-             <h1 className="text-5xl font-black text-white text-center mb-12 flex items-center justify-center gap-4"><MessageSquare size={48} style={{ color: settings.primaryColor }}/> Контакти</h1>
-             <form className="bg-white/5 p-10 rounded-[3rem] border border-white/10 space-y-6">
-                <input required placeholder="Име" className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none focus:ring-1" style={{'--tw-ring-color': settings.primaryColor}}/>
-                <textarea required placeholder="Съобщение..." rows={6} className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none resize-none focus:ring-1" style={{'--tw-ring-color': settings.primaryColor}}/>
-                <button type="submit" className="w-full py-5 bg-white text-black font-black uppercase tracking-widest rounded-2xl hover:scale-[1.02] active:scale-95 transition-all">ИЗПРАТИ</button>
+          <div className="pt-40 pb-32 px-10 max-w-4xl mx-auto min-h-screen">
+             <div className="text-center mb-20">
+               <h1 className="text-7xl font-black text-white mb-6 tracking-tighter">Свържи се с нас</h1>
+               <p className="text-slate-500 text-xl font-medium">Имаш предложение или проблем? Ние сме тук.</p>
+             </div>
+             <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                const d = new FormData(e.target);
+                const newInq = { id: Date.now(), name: d.get('name'), email: d.get('email'), message: d.get('message'), date: new Date().toLocaleDateString() };
+                setInquiries(prev => [newInq, ...prev]);
+                showToast("Съобщението е изпратено!", "success");
+                e.target.reset();
+              }}
+              className="bg-white/5 premium-blur p-16 rounded-[4rem] border border-white/10 space-y-8 shadow-3xl"
+            >
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-4">Твоето Име</label>
+                    <input required name="name" placeholder="Йоан Доу" className="w-full bg-black/40 border border-white/10 p-6 rounded-3xl text-white outline-none focus:ring-2 transition-all" style={{'--tw-ring-color': settings.primaryColor}}/>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-4">Имейл Адрес</label>
+                    <input required name="email" type="email" placeholder="email@example.com" className="w-full bg-black/40 border border-white/10 p-6 rounded-3xl text-white outline-none focus:ring-2 transition-all" style={{'--tw-ring-color': settings.primaryColor}}/>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-4">Твоето Съобщение</label>
+                  <textarea required name="message" placeholder="Пиши ни тук..." rows={6} className="w-full bg-black/40 border border-white/10 p-6 rounded-3xl text-white outline-none resize-none focus:ring-2 transition-all" style={{'--tw-ring-color': settings.primaryColor}}/>
+                </div>
+                <button type="submit" className="w-full py-7 bg-white text-black font-black uppercase tracking-[0.3em] rounded-3xl hover:scale-[1.02] active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-4">
+                  ИЗПРАТИ СЪОБЩЕНИЕТО <Send size={20}/>
+                </button>
              </form>
           </div>
         )}
 
+        {/* --- LOGIN VIEW --- */}
         {view === 'login' && (
-           <div className="pt-40 flex justify-center px-6">
-              <div className="bg-white/5 backdrop-blur-3xl p-12 rounded-[3.5rem] border border-white/10 w-full max-w-md shadow-2xl text-center">
-                 <h2 className="text-3xl font-black text-white mb-8 tracking-widest uppercase tracking-[0.2em]">{settings.texts.loginTitle}</h2>
-                 <form onSubmit={(e)=>{ e.preventDefault(); if(loginForm.email === 'admin@animaciqbg.net' && loginForm.password === 'admin123'){ setCurrentUser(MOCK_ADMIN); localStorage.setItem('adminSession', 'true'); setView('admin'); addLog("Вход", "success"); } else alert("Грешка!"); }} className="space-y-4">
-                    <input type="email" required placeholder="Имейл" className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none" value={loginForm.email} onChange={e=>setLoginForm({...loginForm, email: e.target.value})}/>
-                    <input type="password" required placeholder="Парола" className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none" value={loginForm.password} onChange={e=>setLoginForm({...loginForm, password: e.target.value})}/>
-                    <button className="w-full py-5 text-black bg-white font-black uppercase tracking-widest rounded-2xl hover:scale-105 transition-all">ВХОД</button>
+           <div className="pt-48 flex justify-center px-10">
+              <div className="bg-white/5 premium-blur p-16 rounded-[4rem] border border-white/10 w-full max-w-xl shadow-3xl text-center">
+                 <div className="w-24 h-24 bg-white/5 rounded-[2rem] flex items-center justify-center mx-auto mb-10 border border-white/10">
+                    <Shield size={48} style={{ color: settings.primaryColor }} />
+                 </div>
+                 <h2 className="text-4xl font-black text-white mb-4 tracking-[0.1em] uppercase">{settings.texts.loginTitle}</h2>
+                 <p className="text-slate-500 mb-12 font-medium">Само за оторизиран персонал.</p>
+                 <form onSubmit={(e)=>{ 
+                   e.preventDefault(); 
+                   if(loginForm.email === 'admin@animaciqbg.net' && loginForm.password === 'admin123'){ 
+                     setCurrentUser(MOCK_ADMIN); 
+                     localStorage.setItem('adminSession', 'true'); 
+                     setView('admin'); 
+                     addLog("Вход в административен панел", "success");
+                     showToast("Добре дошли, Админ!", "success");
+                   } else {
+                     showToast("Невалидни данни!", "error");
+                   }
+                 }} className="space-y-6">
+                    <input type="email" required placeholder={settings.texts.loginEmailPlaceholder} className="w-full bg-black/40 border border-white/10 p-6 rounded-3xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}} value={loginForm.email} onChange={e=>setLoginForm({...loginForm, email: e.target.value})}/>
+                    <input type="password" required placeholder={settings.texts.loginPasswordPlaceholder} className="w-full bg-black/40 border border-white/10 p-6 rounded-3xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}} value={loginForm.password} onChange={e=>setLoginForm({...loginForm, password: e.target.value})}/>
+                    <button className="w-full py-7 text-black bg-white font-black uppercase tracking-[0.2em] rounded-3xl hover:scale-105 transition-all shadow-2xl mt-4">
+                      {settings.texts.loginButton}
+                    </button>
                  </form>
               </div>
            </div>
         )}
 
+        {/* --- ADMIN VIEW --- */}
         {view === 'admin' && currentUser && (
-          <div className="pt-32 px-6 max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-10">
-            <div className="lg:w-72 shrink-0 flex flex-col gap-2">
-               {['dashboard', 'collections', 'inquiries', 'settings', 'texts', 'logs'].map(id => (
-                  <button key={id} onClick={() => setAdminTab(id)} className={`w-full text-left p-5 rounded-3xl font-black uppercase tracking-widest text-[10px] transition-all ${adminTab === id ? 'text-white' : 'text-slate-500 hover:bg-white/5'}`} style={adminTab === id ? { backgroundColor: settings.primaryColor } : {}}>
-                     {id.toUpperCase()}
+          <div className="pt-40 px-10 max-w-[1700px] mx-auto flex flex-col xl:flex-row gap-16">
+            {/* Sidebar Navigation */}
+            <div className="xl:w-80 shrink-0 flex flex-col gap-3">
+               <div className="bg-slate-900/50 p-6 rounded-[2.5rem] border border-white/5 mb-6">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white font-bold">A</div>
+                    <div>
+                      <h4 className="text-white font-black text-sm">{currentUser.name}</h4>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-widest">{currentUser.role}</p>
+                    </div>
+                  </div>
+                  <div className="h-px bg-white/5 w-full mb-4" />
+                  <div className="text-[10px] font-bold text-slate-600 uppercase flex items-center gap-2">
+                    <Database size={12}/> DB VERSION: {settings.version}
+                  </div>
+               </div>
+
+               {[
+                {id: 'dashboard', icon: <Layout size={18}/>, label: 'Дашборд'},
+                {id: 'catalog', icon: <Film size={18}/>, label: 'Каталог'},
+                {id: 'collections', icon: <Layers size={18}/>, label: 'Колекции'},
+                {id: 'inquiries', icon: <Mail size={18}/>, label: 'Запитвания'},
+                {id: 'settings', icon: <Settings size={18}/>, label: 'Настройки'},
+                {id: 'texts', icon: <Type size={18}/>, label: 'Текстове'},
+                {id: 'logs', icon: <Activity size={18}/>, label: 'Логове'}
+               ].map(tab => (
+                  <button 
+                    key={tab.id} 
+                    onClick={() => setAdminTab(tab.id)} 
+                    className={`w-full text-left p-6 rounded-[2rem] font-black uppercase tracking-widest text-[11px] flex items-center gap-4 transition-all
+                      ${adminTab === tab.id ? 'text-white shadow-xl' : 'text-slate-500 hover:bg-white/5'}`} 
+                    style={adminTab === tab.id ? { backgroundColor: settings.primaryColor, boxShadow: `0 10px 30px ${settings.primaryColor}30` } : {}}
+                  >
+                     {tab.icon} {tab.label}
                   </button>
                ))}
             </div>
 
-            <div className="flex-1 pb-20">
+            {/* Content Area */}
+            <div className="flex-1 pb-32">
                {adminTab === 'dashboard' && (
-                  <div className="space-y-10">
-                     <div className="bg-slate-900 p-8 rounded-[3rem] border border-white/5 shadow-2xl">
-                        <h2 className="text-2xl font-black text-white mb-8">{editingVideoId ? "Редактиране" : "Добавяне"}</h2>
+                  <div className="space-y-12">
+                     {/* Stats Grid */}
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        {[
+                          { label: 'Общо Видеа', val: videos.length, icon: <Film className="text-blue-500"/> },
+                          { label: 'Общо Гледания', val: videos.reduce((a,b)=>a+(b.views||0), 0), icon: <Eye className="text-emerald-500"/> },
+                          { label: 'Запитвания', val: inquiries.length, icon: <Mail className="text-yellow-500"/> },
+                          { label: 'Лайкове', val: videos.reduce((a,b)=>a+(b.likes||0), 0), icon: <ThumbsUp className="text-rose-500"/> }
+                        ].map((s, i) => (
+                          <div key={i} className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/5 shadow-2xl">
+                             <div className="flex justify-between items-start mb-4">
+                               <div className="p-3 bg-white/5 rounded-2xl">{s.icon}</div>
+                               <BarChart3 size={16} className="text-slate-700"/>
+                             </div>
+                             <h4 className="text-4xl font-black text-white mb-1">{s.val.toLocaleString()}</h4>
+                             <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{s.label}</p>
+                          </div>
+                        ))}
+                     </div>
+
+                     <div className="bg-slate-900 p-10 rounded-[3rem] border border-white/5 shadow-3xl">
+                        <h2 className="text-3xl font-black text-white mb-10 flex items-center gap-4">
+                          <Activity style={{ color: settings.primaryColor }} /> Последна Активност
+                        </h2>
+                        <div className="space-y-4">
+                          {activityLog.slice(0, 5).map(l => (
+                             <div key={l.id} className="p-5 bg-black/40 rounded-2xl border border-white/5 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center">
+                                    <Clock size={16} className="text-slate-500" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-bold text-white">{l.msg}</p>
+                                    <p className="text-[10px] text-slate-600 uppercase font-black">{l.date}</p>
+                                  </div>
+                                </div>
+                                <span className={`text-[9px] font-black px-3 py-1 rounded-full border ${l.type === 'error' ? 'text-red-500 border-red-500/20' : 'text-blue-500 border-blue-500/20'}`}>
+                                  {l.type.toUpperCase()}
+                                </span>
+                             </div>
+                          ))}
+                        </div>
+                     </div>
+                  </div>
+               )}
+
+               {adminTab === 'catalog' && (
+                  <div className="space-y-12">
+                     <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-white/5 shadow-3xl">
+                        <h2 className="text-3xl font-black text-white mb-10">{editingVideoId ? "Редактиране на Видео" : "Добавяне на Ново Видео"}</h2>
                         <form onSubmit={e => {
                            e.preventDefault(); const d = new FormData(e.target);
-                           const vData = { title: d.get('title'), year: d.get('year'), streamType: d.get('type'), embedUrl: d.get('embed'), downloadUrl: d.get('download'), thumbnail: d.get('thumb'), description: d.get('desc') };
-                           if (editingVideoId) handleEditVideo(editingVideoId, vData); else handleAddVideo(vData);
+                           const vData = { 
+                             title: d.get('title'), 
+                             year: d.get('year'), 
+                             streamType: d.get('type'), 
+                             embedUrl: d.get('embed'), 
+                             downloadUrl: d.get('download'), 
+                             thumbnail: d.get('thumb'), 
+                             description: d.get('desc'),
+                             type: d.get('category'),
+                             duration: d.get('duration')
+                           };
+                           if (editingVideoId) handleVideoAction(editingVideoId, 'edit', vData); 
+                           else handleVideoAction(null, 'add', vData);
                            e.target.reset();
-                        }} className="grid grid-cols-2 gap-6">
-                           <input name="title" required defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.title : ""} placeholder="Заглавие" className="col-span-2 bg-black/40 border border-white/5 p-5 rounded-2xl text-white outline-none focus:ring-1" style={{'--tw-ring-color': settings.primaryColor}}/>
-                           <input name="year" required defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.year : ""} placeholder="Година" className="bg-black/40 border border-white/5 p-5 rounded-2xl text-white outline-none"/>
-                           <input name="thumb" required defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.thumbnail : ""} placeholder="Thumbnail URL" className="bg-black/40 border border-white/5 p-5 rounded-2xl text-white outline-none"/>
-                           <select name="type" className="col-span-2 bg-black/40 border border-white/5 p-5 rounded-2xl text-white outline-none">
-                              <option value="embed">Стрийминг</option><option value="download">Изтегляне</option>
-                           </select>
-                           <input name="embed" placeholder="Embed URL" className="bg-black/40 border border-white/5 p-5 rounded-2xl text-white outline-none"/>
-                           <input name="download" placeholder="Download URL" className="bg-black/40 border border-white/5 p-5 rounded-2xl text-white outline-none"/>
-                           <button type="submit" className="col-span-2 py-5 text-white font-black rounded-2xl uppercase tracking-widest shadow-2xl" style={{ backgroundColor: settings.primaryColor }}>ЗАПАЗИ</button>
+                        }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                           <div className="lg:col-span-2 space-y-2">
+                             <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Заглавие</label>
+                             <input name="title" required defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.title : ""} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                           </div>
+                           <div className="space-y-2">
+                             <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Година</label>
+                             <input name="year" required defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.year : ""} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none"/>
+                           </div>
+                           <div className="lg:col-span-2 space-y-2">
+                             <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Thumbnail URL</label>
+                             <input name="thumb" required defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.thumbnail : ""} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none"/>
+                           </div>
+                           <div className="space-y-2">
+                             <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Категория</label>
+                             <select name="category" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.type : "movie"} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none">
+                                <option value="movie">Филм</option><option value="series">Сериал</option><option value="short">Кратка Анимация</option>
+                             </select>
+                           </div>
+                           <div className="space-y-2">
+                             <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Тип Стрийм</label>
+                             <select name="type" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.streamType : "embed"} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none">
+                                <option value="embed">Стрийминг (Embed)</option><option value="download">Изтегляне (Link)</option>
+                             </select>
+                           </div>
+                           <div className="space-y-2">
+                             <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Embed URL</label>
+                             <input name="embed" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.embedUrl : ""} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none"/>
+                           </div>
+                           <div className="space-y-2">
+                             <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Времетраене</label>
+                             <input name="duration" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.duration : ""} placeholder="напр. 95 min" className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none"/>
+                           </div>
+                           <div className="lg:col-span-3 space-y-2">
+                             <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Описание</label>
+                             <textarea name="desc" rows={4} defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.description : ""} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none resize-none"/>
+                           </div>
+                           <div className="lg:col-span-3 pt-6 flex gap-4">
+                             <button type="submit" className="flex-1 py-7 text-white font-black rounded-3xl uppercase tracking-[0.3em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all" style={{ backgroundColor: settings.primaryColor }}>
+                                {editingVideoId ? "ЗАПАЗИ ПРОМЕНИТЕ" : "ДОБАВИ В КАТАЛОГА"}
+                             </button>
+                             {editingVideoId && (
+                               <button type="button" onClick={() => setEditingVideoId(null)} className="px-10 py-7 bg-white/5 text-white font-black rounded-3xl uppercase tracking-widest hover:bg-white/10 transition-all">ОТКАЗ</button>
+                             )}
+                           </div>
                         </form>
                      </div>
-                     <div className="bg-slate-900 p-8 rounded-[3rem] border border-white/5 shadow-2xl space-y-4">
+
+                     <div className="grid grid-cols-1 gap-4">
+                        <div className="flex items-center justify-between mb-4 px-4">
+                          <h3 className="text-xl font-black text-white">Инвентар ({videos.length})</h3>
+                          <div className="flex gap-2">
+                            <button className="p-3 bg-white/5 text-slate-500 rounded-xl hover:text-white transition-colors"><RefreshCw size={18}/></button>
+                          </div>
+                        </div>
                         {videos.map(v => (
-                           <div key={v.id} className="flex items-center justify-between p-4 rounded-2xl border bg-black/40 border-white/5 transition-all hover:border-white/20">
-                              <div className="flex items-center gap-4"><img src={v.thumbnail} className="w-10 h-14 object-cover rounded-lg" alt=""/><div className="text-white font-bold">{v.title}</div></div>
-                              <div className="flex items-center gap-2"><button onClick={() => { setEditingVideoId(v.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-3 text-slate-400 hover:text-white"><Edit size={20}/></button><button onClick={() => { if(window.confirm("Изтриване?")) { setVideos(prev=>prev.filter(x=>x.id!==v.id)); addLog("Изтрит", "warning"); } }} className="p-3 text-slate-500 hover:text-red-500"><Trash2 size={20}/></button></div>
+                           <div key={v.id} className="flex items-center justify-between p-6 rounded-[2rem] border bg-slate-900/50 border-white/5 transition-all hover:bg-slate-800/50 group">
+                              <div className="flex items-center gap-6">
+                                <div className="relative w-16 h-20 rounded-2xl overflow-hidden shadow-xl">
+                                  <img src={v.thumbnail} className="w-full h-full object-cover" alt=""/>
+                                  <div className="absolute inset-0 bg-black/20" />
+                                </div>
+                                <div>
+                                  <h4 className="text-white font-black text-lg group-hover:text-red-500 transition-colors">{v.title}</h4>
+                                  <div className="flex items-center gap-4 text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                                    <span className="flex items-center gap-1"><Calendar size={12}/> {v.year}</span>
+                                    <span className="flex items-center gap-1"><Eye size={12}/> {v.views}</span>
+                                    <span className={`px-2 py-0.5 rounded-md ${v.streamType === 'download' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>{v.streamType}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                 <button onClick={() => { setEditingVideoId(v.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="w-14 h-14 flex items-center justify-center bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 rounded-2xl transition-all shadow-lg">
+                                   <Edit size={22}/>
+                                 </button>
+                                 <button onClick={() => setDeleteConfirm({ open: true, id: v.id, type: 'video' })} className="w-14 h-14 flex items-center justify-center bg-white/5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-2xl transition-all shadow-lg">
+                                   <Trash2 size={22}/>
+                                 </button>
+                              </div>
                            </div>
                         ))}
                      </div>
@@ -427,53 +849,156 @@ export default function App() {
                )}
 
                {adminTab === 'settings' && (
-                  <div className="bg-slate-900 p-8 rounded-[3rem] border border-white/5 shadow-2xl space-y-12 text-white">
-                     <section className="space-y-8">
-                       <h2 className="text-xl font-black mb-6 flex items-center gap-3"><Zap style={{ color: settings.primaryColor }}/> Синхронизация</h2>
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <button onClick={() => { const blob = new Blob([JSON.stringify({ version: "13.4", videos, collections, inquiries, settings }, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `backup.json`; link.click(); }} className="flex flex-col items-center gap-4 p-8 rounded-[2rem] bg-green-600"><Download size={32}/><span className="font-black">ЕКСПОРТ</span></button>
-                          <label className="flex flex-col items-center gap-4 p-8 rounded-[2rem] bg-blue-600 cursor-pointer"><input type="file" accept=".json" className="hidden" onChange={(e) => { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (ev) => { try { const data = JSON.parse(ev.target.result); if(window.confirm("Замяна?")) { setVideos(data.videos); setSettings(data.settings); setCollections(data.collections || []); setInquiries(data.inquiries || []); window.location.reload(); } } catch { alert("Грешка!"); } }; reader.readAsText(file); }} /><FileUp size={32}/><span className="font-black">ИМПОРТ</span></label>
+                  <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-white/5 shadow-3xl space-y-16 text-white">
+                     <section className="space-y-10">
+                       <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
+                         <Database style={{ color: settings.primaryColor }}/> Cloud Sync & Backup
+                       </h2>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          <button 
+                            onClick={() => { 
+                              const blob = new Blob([JSON.stringify({ version: SCHEMA_VERSION, videos, collections, inquiries, settings, exportDate: new Date() }, null, 2)], { type: 'application/json' }); 
+                              const link = document.createElement('a'); 
+                              link.href = URL.createObjectURL(blob); 
+                              link.download = `animationbg_v14_backup_${Date.now()}.json`; 
+                              link.click(); 
+                              showToast("Архивът е готов!", "success");
+                            }} 
+                            className="flex flex-col items-center gap-6 p-12 rounded-[3rem] bg-emerald-600 hover:bg-emerald-700 transition-all shadow-2xl group"
+                          >
+                            <div className="p-5 bg-white/20 rounded-full group-hover:scale-110 transition-transform"><FileDown size={40}/></div>
+                            <div className="text-center">
+                              <span className="block font-black text-xl tracking-widest uppercase">ЕКСПОРТ ДАННИ</span>
+                              <span className="text-[10px] font-bold opacity-60">Свали пълен архив на платформата</span>
+                            </div>
+                          </button>
+                          
+                          <label className="flex flex-col items-center gap-6 p-12 rounded-[3rem] bg-blue-600 hover:bg-blue-700 transition-all shadow-2xl group cursor-pointer">
+                             <input type="file" accept=".json" className="hidden" onChange={(e) => { 
+                               const file = e.target.files[0]; 
+                               if(!file) return; 
+                               const reader = new FileReader(); 
+                               reader.onload = (ev) => { 
+                                 try { 
+                                   const data = JSON.parse(ev.target.result); 
+                                   if (data.version !== SCHEMA_VERSION) {
+                                      if (!window.confirm("Версията на архива е различна! Продължаване?")) return;
+                                   }
+                                   if(window.confirm("ВНИМАНИЕ: Това ще заличи текущите данни! Потвърди импорт?")) { 
+                                      setVideos(data.videos || []); 
+                                      setSettings(prev => ({ ...prev, ...(data.settings || {}) })); 
+                                      setCollections(data.collections || []); 
+                                      setInquiries(data.inquiries || []); 
+                                      showToast("Данните са синхронизирани!", "success");
+                                      setTimeout(() => window.location.reload(), 1500);
+                                   } 
+                                 } catch { 
+                                   showToast("Невалиден файл!", "error");
+                                 } 
+                               }; 
+                               reader.readAsText(file); 
+                             }} />
+                             <div className="p-5 bg-white/20 rounded-full group-hover:scale-110 transition-transform"><FileUp size={40}/></div>
+                             <div className="text-center">
+                               <span className="block font-black text-xl tracking-widest uppercase">ИМПОРТ ДАННИ</span>
+                               <span className="text-[10px] font-bold opacity-60">Зареди данни от външен архив</span>
+                             </div>
+                          </label>
                        </div>
+                     </section>
+
+                     <section className="space-y-10 border-t border-white/5 pt-16">
+                        <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
+                          <Palette style={{ color: settings.primaryColor }}/> Визуален Дизайн
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Основен Цвят на Платформата</label>
+                              <div className="flex gap-4">
+                                <input type="color" value={settings.primaryColor} onChange={e => setSettings({...settings, primaryColor: e.target.value})} className="w-20 h-16 bg-transparent border-0 rounded-2xl cursor-pointer shadow-xl"/>
+                                <input value={settings.primaryColor} onChange={e => setSettings({...settings, primaryColor: e.target.value})} className="flex-1 bg-black/40 border border-white/10 p-4 rounded-2xl text-white font-mono uppercase text-center focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                              </div>
+                           </div>
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Визуален Ефект (Particles)</label>
+                              <select value={settings.visualEffect} onChange={e => setSettings({...settings, visualEffect: e.target.value})} className="w-full bg-black/40 border border-white/10 p-5 rounded-3xl text-white outline-none">
+                                <option value="none">Без ефект</option>
+                                <option value="snow">Сняг (Зима)</option>
+                                <option value="rain">Дъжд (Есен)</option>
+                                <option value="sakura">Сакура (Пролет)</option>
+                                <option value="fireflies">Светулки (Лято)</option>
+                              </select>
+                           </div>
+                        </div>
                      </section>
                   </div>
                )}
 
-               {adminTab === 'collections' && (
-                  <div className="bg-slate-900 p-8 rounded-[3rem] border border-white/5 shadow-2xl space-y-8">
-                     <h2 className="text-2xl font-black text-white">Колекции</h2>
-                     <form onSubmit={e => { e.preventDefault(); const d = new FormData(e.target); const sel = Array.from(e.target.vids.selectedOptions).map(o => o.value); const newCol = { id: Date.now(), title: d.get('title'), description: d.get('desc'), videoIds: sel }; setCollections([...collections, newCol]); e.target.reset(); }} className="space-y-6">
-                        <input name="title" required placeholder="Заглавие" className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none"/>
-                        <select name="vids" multiple className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl text-white h-48 outline-none">
-                           {videos.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
-                        </select>
-                        <button type="submit" className="w-full py-5 text-white font-black rounded-2xl uppercase tracking-widest" style={{ backgroundColor: settings.primaryColor }}>СЪЗДАЙ</button>
-                     </form>
-                  </div>
-               )}
-
                {adminTab === 'inquiries' && (
-                  <div className="bg-slate-900 p-8 rounded-[3rem] border border-white/5 shadow-2xl space-y-6">
-                     <h2 className="text-2xl font-black text-white mb-6">Запитвания</h2>
-                     {inquiries.length === 0 ? <p className="text-slate-500">Няма съобщения.</p> : inquiries.map(inq => (
-                        <div key={inq.id} className="bg-black/40 border border-white/5 p-6 rounded-2xl">
-                           <div className="flex justify-between">
-                              <div><h4 className="text-white font-bold">{inq.name}</h4><p className="text-slate-500 text-xs">{inq.email}</p></div>
-                              <button onClick={()=>setInquiries(prev=>prev.filter(x=>x.id!==inq.id))} className="text-red-900 hover:text-red-500"><Trash2 size={18}/></button>
-                           </div>
-                           <div className="text-slate-300 text-sm mt-4">{inq.message}</div>
+                  <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-white/5 shadow-3xl space-y-10">
+                     <div className="flex justify-between items-center">
+                        <h2 className="text-3xl font-black text-white flex items-center gap-4">
+                          <MessageSquare style={{ color: settings.primaryColor }} /> Входяща Кутия
+                        </h2>
+                        <span className="bg-white/5 px-4 py-2 rounded-xl text-xs font-bold text-slate-500 border border-white/10 uppercase tracking-widest">{inquiries.length} СЪОБЩЕНИЯ</span>
+                     </div>
+                     {inquiries.length === 0 ? (
+                        <div className="py-32 text-center opacity-20">
+                          <Mail size={80} className="mx-auto mb-6" />
+                          <p className="text-xl font-black uppercase tracking-widest">Няма нови запитвания</p>
                         </div>
-                     ))}
+                     ) : (
+                        <div className="grid grid-cols-1 gap-6">
+                           {inquiries.map(inq => (
+                              <div key={inq.id} className="bg-black/40 border border-white/5 p-10 rounded-[2.5rem] hover:border-white/20 transition-all shadow-xl">
+                                 <div className="flex justify-between items-start mb-8">
+                                    <div className="flex gap-5 items-center">
+                                       <div className="w-16 h-16 bg-slate-800 rounded-3xl flex items-center justify-center font-black text-2xl text-white">
+                                          {inq.name[0]}
+                                       </div>
+                                       <div>
+                                          <h4 className="text-xl font-black text-white">{inq.name}</h4>
+                                          <p className="text-slate-500 font-bold flex items-center gap-2 mt-1">
+                                            <Mail size={14} style={{ color: settings.primaryColor }}/> {inq.email}
+                                          </p>
+                                       </div>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-3">
+                                       <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{inq.date}</span>
+                                       <button onClick={() => { setInquiries(prev => prev.filter(x => x.id !== inq.id)); showToast("Съобщението е изтрито.", "warning"); }} className="p-3 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all">
+                                          <Trash2 size={20}/>
+                                       </button>
+                                    </div>
+                                 </div>
+                                 <div className="bg-slate-950/50 p-8 rounded-3xl text-slate-300 leading-relaxed font-medium italic border border-white/5">
+                                    "{inq.message}"
+                                 </div>
+                              </div>
+                           ))}
+                        </div>
+                     )}
                   </div>
                )}
 
                {adminTab === 'texts' && (
-                  <div className="bg-slate-900 p-8 rounded-[3rem] border border-white/5 shadow-2xl space-y-10 text-white">
-                      <div className="flex justify-between items-center"><h2 className="text-2xl font-black flex items-center gap-3"><Type style={{ color: settings.primaryColor }}/> Текстове</h2></div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-white/5 shadow-3xl space-y-12 text-white">
+                      <h2 className="text-3xl font-black flex items-center gap-4">
+                        <Type style={{ color: settings.primaryColor }}/> Управление на Текстове
+                      </h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                          {Object.keys(settings.texts).map(key => (
-                            <div key={key} className="space-y-2">
-                               <label className="text-[10px] uppercase font-black text-slate-500">{key}</label>
-                               <input value={settings.texts[key]} onChange={e => { const nt = {...settings.texts, [key]: e.target.value}; setSettings(prev=>({...prev, texts: nt})); }} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white text-sm outline-none"/>
+                            <div key={key} className="space-y-4 p-8 bg-black/40 rounded-[2.5rem] border border-white/5 hover:border-white/10 transition-all">
+                               <label className="text-[11px] uppercase font-black text-slate-500 ml-2 tracking-[0.2em]">{key.replace(/([A-Z])/g, ' $1')}</label>
+                               <textarea 
+                                  value={settings.texts[key]} 
+                                  rows={2}
+                                  onChange={e => {
+                                    const nt = {...settings.texts, [key]: e.target.value}; 
+                                    setSettings(prev=>({...prev, texts: nt}));
+                                  }} 
+                                  className="w-full bg-slate-950 border border-slate-800 p-5 rounded-2xl text-white text-sm outline-none focus:ring-2 resize-none"
+                                  style={{'--tw-ring-color': settings.primaryColor}}
+                               />
                             </div>
                          ))}
                       </div>
@@ -481,24 +1006,121 @@ export default function App() {
                )}
 
                {adminTab === 'logs' && (
-                  <div className="bg-slate-900 p-8 rounded-[3rem] border border-white/5 shadow-2xl h-[600px] overflow-hidden flex flex-col text-white">
-                     <h2 className="text-2xl font-black mb-6 flex items-center gap-3"><Activity style={{ color: settings.primaryColor }}/> Логове</h2>
-                     <div className="flex-1 overflow-y-auto no-scrollbar space-y-2">
-                        {activityLog.map(l => (
-                           <div key={l.id} className="p-4 bg-black/40 border-l-4 rounded-xl flex justify-between items-center" style={{ borderLeftColor: l.type === 'error' ? 'red' : settings.primaryColor }}><span className="text-xs">{l.msg}</span><span className="text-[10px] text-slate-600">{l.date}</span></div>
+                  <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-white/5 shadow-3xl h-[800px] overflow-hidden flex flex-col text-white">
+                     <div className="flex justify-between items-center mb-10">
+                        <h2 className="text-3xl font-black flex items-center gap-4">
+                          <Activity style={{ color: settings.primaryColor }}/> Системни Логове
+                        </h2>
+                        <button onClick={() => setActivityLog([])} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-500 transition-colors">Изчисти всички</button>
+                     </div>
+                     <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-2">
+                        {activityLog.length === 0 ? (
+                           <p className="text-center py-20 text-slate-700 font-black uppercase tracking-widest">Няма активни логове</p>
+                        ) : activityLog.map(l => (
+                           <div key={l.id} className="p-6 bg-black/40 border-l-4 rounded-2xl flex justify-between items-center shadow-lg hover:bg-black/60 transition-all" 
+                                style={{ borderLeftColor: l.type === 'error' ? '#EF4444' : (l.type === 'success' ? '#10B981' : settings.primaryColor) }}>
+                              <div className="flex items-center gap-5">
+                                 <div className="p-2 bg-white/5 rounded-lg">
+                                    {l.type === 'error' ? <ShieldAlert size={16} className="text-rose-500"/> : (l.type === 'success' ? <Check size={16} className="text-emerald-500"/> : <Info size={16} className="text-blue-500"/>)}
+                                 </div>
+                                 <span className="text-sm font-bold tracking-tight">{l.msg}</span>
+                              </div>
+                              <span className="text-[10px] font-black text-slate-600 uppercase tabular-nums">{l.date}</span>
+                           </div>
                         ))}
                      </div>
                   </div>
+               )}
+
+               {adminTab === 'collections' && (
+                 <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-white/5 shadow-3xl space-y-12">
+                    <h2 className="text-3xl font-black text-white flex items-center gap-4">
+                      <Layers style={{ color: settings.primaryColor }} /> Управление на Колекции
+                    </h2>
+                    
+                    <form onSubmit={e => {
+                      e.preventDefault();
+                      const d = new FormData(e.target);
+                      const selected = Array.from(e.target.vids.selectedOptions).map(o => o.value);
+                      const newCol = { id: Date.now(), title: d.get('title'), description: d.get('desc'), videoIds: selected };
+                      setCollections(prev => [...prev, newCol]);
+                      showToast("Колекцията е създадена!", "success");
+                      e.target.reset();
+                    }} className="space-y-8 bg-black/40 p-10 rounded-[3rem] border border-white/5">
+                       <div className="grid md:grid-cols-2 gap-8">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Име на Колекцията</label>
+                            <input name="title" required placeholder="напр. Класически Анимации" className="w-full bg-slate-950 border border-white/5 p-6 rounded-3xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Избери Видеа (Shift+Click)</label>
+                            <select name="vids" multiple required className="w-full bg-slate-950 border border-white/5 p-4 rounded-3xl text-white h-48 outline-none focus:ring-2 no-scrollbar" style={{'--tw-ring-color': settings.primaryColor}}>
+                               {videos.map(v => <option key={v.id} value={v.id} className="p-3 border-b border-white/5 text-sm font-bold">{v.title}</option>)}
+                            </select>
+                          </div>
+                       </div>
+                       <div className="space-y-2">
+                         <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Описание</label>
+                         <textarea name="desc" placeholder="Кратко представяне на колекцията..." className="w-full bg-slate-950 border border-white/5 p-6 rounded-3xl text-white outline-none h-32 resize-none"/>
+                       </div>
+                       <button type="submit" className="w-full py-7 text-white font-black rounded-3xl uppercase tracking-[0.3em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all" style={{ backgroundColor: settings.primaryColor }}>
+                          СЪЗДАЙ КОЛЕКЦИЯ
+                       </button>
+                    </form>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                       {collections.map(col => (
+                          <div key={col.id} className="p-8 bg-black/20 rounded-[2.5rem] border border-white/5 flex flex-col justify-between group">
+                             <div>
+                                <div className="flex justify-between items-start mb-4">
+                                   <h4 className="text-xl font-black text-white uppercase group-hover:text-red-500 transition-all">{col.title}</h4>
+                                   <button onClick={() => { setCollections(prev => prev.filter(c => c.id !== col.id)); showToast("Колекцията е премахната.", "warning"); }} className="p-3 text-slate-600 hover:text-rose-500 transition-colors">
+                                      <Trash2 size={20}/>
+                                   </button>
+                                </div>
+                                <p className="text-slate-500 text-sm font-medium line-clamp-2">{col.description}</p>
+                             </div>
+                             <div className="mt-8 flex items-center justify-between">
+                                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{col.videoIds.length} ВИДЕА</span>
+                                <div className="flex -space-x-4">
+                                   {col.videoIds.slice(0, 5).map(vid => (
+                                      <div key={vid} className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-800 overflow-hidden">
+                                         <img src={videos.find(v=>v.id===vid)?.thumbnail} className="w-full h-full object-cover" alt=""/>
+                                      </div>
+                                   ))}
+                                   {col.videoIds.length > 5 && (
+                                      <div className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white">
+                                         +{col.videoIds.length - 5}
+                                      </div>
+                                   )}
+                                </div>
+                             </div>
+                          </div>
+                       ))}
+                    </div>
+                 </div>
                )}
             </div>
           </div>
         )}
       </main>
 
-      <footer className="py-24 border-t border-white/5 px-6 mt-32 bg-black/20 text-center">
-        <h3 className="text-3xl font-black text-white tracking-tighter mb-4">{settings.siteName}</h3>
-        <p className="text-slate-500 text-sm font-medium leading-relaxed max-w-xl mx-auto">{settings.texts.footerDescription}</p>
-        <div className="mt-8 text-[10px] font-black text-slate-700 uppercase tracking-[0.5em]">AnimationBG Platform v13.4</div>
+      <footer className="py-32 border-t border-white/5 px-10 mt-32 bg-slate-950/20 text-center relative overflow-hidden">
+        <div className="max-w-4xl mx-auto relative z-10">
+          <div className="w-20 h-1 bg-gradient-to-r from-transparent via-red-600 to-transparent mx-auto mb-10 opacity-50" style={{ backgroundImage: `linear-gradient(to right, transparent, ${settings.primaryColor}, transparent)` }} />
+          <h3 className="text-5xl font-black text-white tracking-tighter mb-6">{settings.siteName}</h3>
+          <p className="text-slate-500 text-lg font-medium leading-relaxed mb-12 max-w-2xl mx-auto">
+            {settings.texts.footerDescription}
+          </p>
+          <div className="flex justify-center gap-10 mb-16">
+             <button className="text-slate-600 hover:text-white transition-colors"><Monitor size={24}/></button>
+             <button className="text-slate-600 hover:text-white transition-colors"><Tablet size={24}/></button>
+             <button className="text-slate-600 hover:text-white transition-colors"><Smartphone size={24}/></button>
+          </div>
+          <div className="text-[10px] font-black text-slate-800 uppercase tracking-[0.8em]">
+            AnimationBG Platform v14.0 • Cloud Sync • Smart Features
+          </div>
+        </div>
       </footer>
     </div>
   );
