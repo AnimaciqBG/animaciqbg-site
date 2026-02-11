@@ -284,6 +284,10 @@ export default function App() {
   const [likedVideos, setLikedVideos] = useState(() => {
     try { return JSON.parse(localStorage.getItem('v14_liked') || '[]'); } catch { return []; }
   });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sortBy, setSortBy] = useState('newest');
+  const [videoInfoModal, setVideoInfoModal] = useState(null);
+  const likeCooldownRef = useRef({});
 
   // State: Admin
   const [adminTab, setAdminTab] = useState('dashboard');
@@ -419,6 +423,11 @@ export default function App() {
 
   // Actions
   const handleLike = useCallback((id) => {
+    const now = Date.now();
+    if (likeCooldownRef.current[id] && now - likeCooldownRef.current[id] < 2000) {
+      return; // Anti-spam: 2s cooldown per video
+    }
+    likeCooldownRef.current[id] = now;
     setLikedVideos(prev => {
       if (prev.includes(id)) {
         setVideos(vids => vids.map(v => v.id === id ? { ...v, likes: Math.max((v.likes || 0) - 1, 0) } : v));
@@ -465,16 +474,36 @@ export default function App() {
 
   // Filtered Logic
   const filteredVideos = useMemo(() => {
-    return videos.filter(v => {
+    let result = videos.filter(v => {
       const matchSearch = v.title.toLowerCase().includes(searchQuery.toLowerCase());
       const matchCol = activeCollection ? activeCollection.videoIds.includes(v.id) : true;
       const matchFilter = filter === 'all' ? true : v.type === filter;
       return matchSearch && matchCol && matchFilter;
     });
-  }, [videos, searchQuery, activeCollection, filter]);
+    if (sortBy === 'newest') {
+      result = [...result].sort((a, b) => {
+        const dA = a.created ? new Date(a.created).getTime() : 0;
+        const dB = b.created ? new Date(b.created).getTime() : 0;
+        return dB - dA;
+      });
+    } else if (sortBy === 'most_viewed') {
+      result = [...result].sort((a, b) => (b.views || 0) - (a.views || 0));
+    } else if (sortBy === 'most_liked') {
+      result = [...result].sort((a, b) => (b.likes || 0) - (a.likes || 0));
+    }
+    return result;
+  }, [videos, searchQuery, activeCollection, filter, sortBy]);
 
   const trendingVideos = useMemo(() => {
     return [...videos].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 10);
+  }, [videos]);
+
+  const recentlyAdded = useMemo(() => {
+    return [...videos].sort((a, b) => {
+      const dA = a.created ? new Date(a.created).getTime() : 0;
+      const dB = b.created ? new Date(b.created).getTime() : 0;
+      return dB - dA;
+    }).slice(0, 10);
   }, [videos]);
 
   return (
@@ -493,6 +522,52 @@ export default function App() {
            setDeleteConfirm({ open: false, id: null, type: null });
         }}
       />
+
+      {/* --- VIDEO INFO MODAL --- */}
+      {videoInfoModal && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center p-6 bg-black/85 backdrop-blur-md">
+          <div className="bg-slate-900 border border-white/10 rounded-[3rem] max-w-lg w-full shadow-3xl overflow-hidden animate-slide-in">
+            <div className="relative aspect-video">
+              <img src={videoInfoModal.thumbnail} className="w-full h-full object-cover" alt={videoInfoModal.title}/>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"/>
+              <button onClick={() => setVideoInfoModal(null)} className="absolute top-4 right-4 p-3 bg-black/50 premium-blur rounded-full text-white hover:bg-red-600 transition-all">
+                <X size={20}/>
+              </button>
+            </div>
+            <div className="p-8 -mt-8 relative z-10">
+              <h3 className="text-2xl font-black text-white mb-3">{videoInfoModal.title}</h3>
+              <div className="flex flex-wrap items-center gap-3 mb-5 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                {videoInfoModal.year && <span className="flex items-center gap-1 bg-white/5 px-3 py-1.5 rounded-full"><Calendar size={12}/> {videoInfoModal.year}</span>}
+                {videoInfoModal.duration && <span className="flex items-center gap-1 bg-white/5 px-3 py-1.5 rounded-full"><Clock size={12}/> {videoInfoModal.duration}</span>}
+                {videoInfoModal.audioType && (
+                  <span className={`flex items-center gap-1 px-3 py-1.5 rounded-full ${videoInfoModal.audioType === 'bg_audio' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-purple-500/20 text-purple-400'}`}>
+                    {videoInfoModal.audioType === 'bg_audio' ? <><Volume2 size={12}/> БГ Аудио</> : <><FileText size={12}/> Субтитри</>}
+                  </span>
+                )}
+                <span className="flex items-center gap-1 bg-white/5 px-3 py-1.5 rounded-full"><Eye size={12}/> {(videoInfoModal.views || 0).toLocaleString()}</span>
+                <span className="flex items-center gap-1 bg-white/5 px-3 py-1.5 rounded-full"><Heart size={12} className="text-rose-500"/> {(videoInfoModal.likes || 0).toLocaleString()}</span>
+              </div>
+              {videoInfoModal.description && (
+                <p className="text-slate-400 text-sm leading-relaxed mb-6">{videoInfoModal.description}</p>
+              )}
+              {videoInfoModal.tags && videoInfoModal.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {videoInfoModal.tags.map(tag => (
+                    <span key={tag} className="bg-white/5 text-slate-500 text-[10px] font-bold px-3 py-1 rounded-full">{tag}</span>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => { setActiveVideo(videoInfoModal); setVideoInfoModal(null); }}
+                className="w-full py-5 text-white font-black uppercase tracking-[0.2em] rounded-2xl hover:scale-[1.02] active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-3"
+                style={{ backgroundColor: settings.primaryColor }}
+              >
+                <Play size={20} fill="currentColor"/> ПУСНИ ФИЛМА
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- PREMIUM PLAYER OVERLAY --- */}
       {activeVideo && activeVideo.streamType === 'embed' && (
@@ -541,7 +616,7 @@ export default function App() {
       <nav className="fixed top-0 left-0 right-0 z-[90] bg-black/70 backdrop-blur-3xl border-b border-white/5 h-24 flex items-center">
         <div className="max-w-[1500px] mx-auto px-10 w-full flex items-center justify-between">
            <div className="flex items-center gap-16">
-             <button onClick={() => { window.location.hash = ''; setView('home'); }} className="group">
+             <button onClick={() => { window.location.hash = ''; setView('home'); setMobileMenuOpen(false); }} className="group">
                 {settings.useLogo && settings.logoUrl ? (
                    <img src={settings.logoUrl} alt="Logo" className="h-12 w-auto object-contain transition-transform group-hover:scale-105" />
                 ) : (
@@ -555,9 +630,9 @@ export default function App() {
              </button>
              <div className="hidden xl:flex items-center gap-10">
                {['home', 'collections', 'contact'].map(nav => (
-                 <button 
-                  key={nav} 
-                  onClick={() => setView(nav)} 
+                 <button
+                  key={nav}
+                  onClick={() => setView(nav)}
                   className={`text-xs font-black uppercase tracking-[0.2em] transition-all hover:translate-y-[-2px] ${view === nav ? 'text-white' : 'text-slate-500 hover:text-white'}`}
                 >
                    {nav === 'home' ? 'Начало' : (nav === 'collections' ? 'Колекции' : 'Контакти')}
@@ -566,12 +641,12 @@ export default function App() {
                ))}
              </div>
            </div>
-           
+
            <div className="flex items-center gap-6">
               {currentUser && (
-                <div className="flex items-center gap-4 bg-white/5 p-2 rounded-full border border-white/10 premium-blur">
-                   <button 
-                    onClick={() => { setAdminTab('dashboard'); setView('admin'); }} 
+                <div className="hidden md:flex items-center gap-4 bg-white/5 p-2 rounded-full border border-white/10 premium-blur">
+                   <button
+                    onClick={() => { setAdminTab('dashboard'); setView('admin'); }}
                     className="p-3 bg-white/5 rounded-full text-white hover:bg-white/20 transition-all flex items-center gap-3"
                   >
                     <Settings size={20}/>
@@ -580,9 +655,53 @@ export default function App() {
                    <button onClick={onLogout} className="p-3 bg-rose-600 rounded-full text-white shadow-xl shadow-rose-600/20 hover:scale-105 transition-all"><LogOut size={20}/></button>
                 </div>
               )}
+              {/* Mobile Hamburger */}
+              <button
+                onClick={() => setMobileMenuOpen(prev => !prev)}
+                className="xl:hidden p-3 bg-white/5 rounded-full text-white border border-white/10 hover:bg-white/10 transition-all"
+              >
+                {mobileMenuOpen ? <X size={24}/> : <Menu size={24}/>}
+              </button>
            </div>
         </div>
       </nav>
+
+      {/* --- MOBILE MENU OVERLAY --- */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-[85] xl:hidden">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
+          <div className="absolute top-24 right-0 w-72 bg-slate-900/95 backdrop-blur-xl border-l border-white/10 h-[calc(100vh-6rem)] p-8 flex flex-col gap-4 animate-slide-in">
+            {['home', 'collections', 'contact'].map(nav => (
+              <button
+                key={nav}
+                onClick={() => { setView(nav); setMobileMenuOpen(false); }}
+                className={`w-full text-left p-5 rounded-2xl font-black uppercase tracking-[0.15em] text-sm transition-all
+                  ${view === nav ? 'text-white' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
+                style={view === nav ? { backgroundColor: settings.primaryColor } : {}}
+              >
+                {nav === 'home' ? 'Начало' : (nav === 'collections' ? 'Колекции' : 'Контакти')}
+              </button>
+            ))}
+            {currentUser && (
+              <>
+                <div className="h-px bg-white/10 my-4" />
+                <button
+                  onClick={() => { setAdminTab('dashboard'); setView('admin'); setMobileMenuOpen(false); }}
+                  className="w-full text-left p-5 rounded-2xl font-black uppercase tracking-[0.15em] text-sm text-slate-500 hover:text-white hover:bg-white/5 transition-all flex items-center gap-3"
+                >
+                  <Settings size={18}/> Контрол Панел
+                </button>
+                <button
+                  onClick={() => { onLogout(); setMobileMenuOpen(false); }}
+                  className="w-full text-left p-5 rounded-2xl font-black uppercase tracking-[0.15em] text-sm text-rose-500 hover:bg-rose-500/10 transition-all flex items-center gap-3"
+                >
+                  <LogOut size={18}/> Изход
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <main className="animate-in fade-in duration-1000">
         {/* --- HOME VIEW --- */}
@@ -590,12 +709,20 @@ export default function App() {
           <div className="pt-40 pb-32 px-10 max-w-[1600px] mx-auto">
             {/* Header Section */}
             <div className="mb-20">
-              <h1 className="text-7xl lg:text-8xl font-black text-white mb-6 tracking-tighter leading-none">
+              <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black text-white mb-6 tracking-tighter leading-none">
                 {activeCollection ? activeCollection.title : settings.texts.homeTitle}
               </h1>
               <p className="text-slate-400 text-xl font-medium max-w-2xl leading-relaxed">
                 {activeCollection ? activeCollection.description : settings.texts.homeSubtitle}
               </p>
+              {activeCollection && (
+                <button
+                  onClick={() => { setActiveCollection(null); setFilter('all'); }}
+                  className="mt-6 flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white text-xs font-black uppercase tracking-widest transition-all"
+                >
+                  <ChevronLeft size={16}/> Обратно към всички
+                </button>
+              )}
             </div>
 
             {/* Search & Filters */}
@@ -613,6 +740,26 @@ export default function App() {
               <FilterBar activeFilter={filter} onFilterChange={setFilter} primaryColor={settings.primaryColor} />
             </div>
 
+            {/* Sort Buttons */}
+            <div className="flex flex-wrap items-center gap-3 mb-12">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 mr-2">Сортирай:</span>
+              {[
+                { id: 'newest', label: 'Най-нови', icon: <Clock size={13}/> },
+                { id: 'most_viewed', label: 'Най-гледани', icon: <Eye size={13}/> },
+                { id: 'most_liked', label: 'Най-харесвани', icon: <Heart size={13}/> }
+              ].map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => setSortBy(s.id)}
+                  className={`px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all
+                    ${sortBy === s.id ? 'text-white shadow-lg' : 'bg-white/5 text-slate-500 hover:bg-white/10'}`}
+                  style={sortBy === s.id ? { backgroundColor: settings.primaryColor, boxShadow: `0 8px 20px ${settings.primaryColor}30` } : {}}
+                >
+                  {s.icon} {s.label}
+                </button>
+              ))}
+            </div>
+
             {/* Trending Carousel (Only on main page) */}
             {!searchQuery && !activeCollection && filter === 'all' && trendingVideos.length > 0 && (
               <div className="mb-32">
@@ -624,7 +771,7 @@ export default function App() {
                 </div>
                 <div className="flex gap-8 overflow-x-auto pb-10 snap-x no-scrollbar">
                   {trendingVideos.map(v => (
-                    <div key={v.id} onClick={() => setActiveVideo(v)} className="group relative flex-shrink-0 w-[350px] md:w-[500px] aspect-video rounded-[3rem] overflow-hidden cursor-pointer snap-start shadow-3xl ring-1 ring-white/10 transition-all hover:ring-white/30">
+                    <div key={v.id} onClick={() => setVideoInfoModal(v)} className="group relative flex-shrink-0 w-[350px] md:w-[500px] aspect-video rounded-[3rem] overflow-hidden cursor-pointer snap-start shadow-3xl ring-1 ring-white/10 transition-all hover:ring-white/30">
                        <img src={v.thumbnail} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={v.title} />
                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-90" />
                        <div className="absolute top-8 right-8 premium-blur bg-white/10 border border-white/20 px-5 py-2 rounded-2xl flex items-center gap-3 text-white font-black text-xs">
@@ -644,10 +791,37 @@ export default function App() {
               </div>
             )}
 
+            {/* Recently Added Section (Only on main page) */}
+            {!searchQuery && !activeCollection && filter === 'all' && recentlyAdded.length > 0 && (
+              <div className="mb-32">
+                <div className="flex items-center gap-4 mb-10">
+                  <h2 className="text-3xl font-black text-white tracking-tighter uppercase flex items-center gap-3">
+                    <Sparkles style={{ color: settings.primaryColor }} /> НАСКОРО ДОБАВЕНИ
+                  </h2>
+                  <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+                </div>
+                <div className="flex gap-8 overflow-x-auto pb-10 snap-x no-scrollbar">
+                  {recentlyAdded.map(v => (
+                    <div key={v.id} onClick={() => setVideoInfoModal(v)} className="group relative flex-shrink-0 w-[250px] md:w-[350px] aspect-[2/3] rounded-[2.5rem] overflow-hidden cursor-pointer snap-start shadow-3xl ring-1 ring-white/10 transition-all hover:ring-white/30 hover:scale-[1.03]">
+                       <img src={v.thumbnail} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={v.title} />
+                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+                       <div className="absolute top-4 left-4">
+                         <span className="bg-emerald-500 text-white text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest">НОВО</span>
+                       </div>
+                       <div className="absolute bottom-8 left-6 right-6">
+                          <h3 className="text-xl font-black text-white line-clamp-2 group-hover:translate-x-1 transition-transform">{v.title}</h3>
+                          <span className="text-[10px] font-bold text-slate-400 mt-2 block">{v.year}</span>
+                       </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Main Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-10">
               {filteredVideos.map(v => (
-                <VideoCard key={v.id} video={v} onClick={setActiveVideo} onLike={handleLike} isLiked={likedVideos.includes(v.id)} primaryColor={settings.primaryColor} />
+                <VideoCard key={v.id} video={v} onClick={setVideoInfoModal} onLike={handleLike} isLiked={likedVideos.includes(v.id)} primaryColor={settings.primaryColor} />
               ))}
             </div>
 
@@ -751,12 +925,24 @@ export default function App() {
                <h1 className="text-7xl font-black text-white mb-6 tracking-tighter">Свържи се с нас</h1>
                <p className="text-slate-500 text-xl font-medium">Имаш предложение или проблем? Ние сме тук.</p>
              </div>
-             <form 
+             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                const lastContactDate = localStorage.getItem('v14_lastContact');
+                const today = new Date().toDateString();
+                if (lastContactDate === today) {
+                  showToast("Можете да изпращате само 1 съобщение на ден.", "warning");
+                  return;
+                }
                 const d = new FormData(e.target);
-                const newInq = { id: Date.now(), name: d.get('name'), email: d.get('email'), message: d.get('message'), date: new Date().toLocaleDateString() };
+                const nameVal = d.get('name').trim();
+                const emailVal = d.get('email').trim();
+                const msgVal = d.get('message').trim();
+                if (nameVal.length < 2 || nameVal.length > 100) { showToast("Невалидно име.", "error"); return; }
+                if (msgVal.length < 5 || msgVal.length > 2000) { showToast("Съобщението трябва да е между 5 и 2000 символа.", "error"); return; }
+                const newInq = { id: Date.now(), name: nameVal, email: emailVal, message: msgVal, date: new Date().toLocaleDateString() };
                 setInquiries(prev => [newInq, ...prev]);
+                localStorage.setItem('v14_lastContact', today);
                 showToast("Съобщението е изпратено!", "success");
                 e.target.reset();
               }}
