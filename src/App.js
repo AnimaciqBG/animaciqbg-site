@@ -41,7 +41,8 @@ const DEFAULT_VIDEOS = [
     dislikes: 12,
     description: 'Магична история за две сестри и вечната зима.',
     tags: ['Animation', 'Family', 'Disney'],
-    duration: '102 min'
+    duration: '102 min',
+    audioType: 'bg_audio'
   }
 ];
 
@@ -140,38 +141,53 @@ const ConfirmDialog = memo(({ isOpen, title, message, onConfirm, onCancel }) => 
 /**
  * Video Card
  */
-const VideoCard = memo(({ video, onClick, primaryColor }) => (
-  <div 
-    onClick={() => onClick(video)} 
+const VideoCard = memo(({ video, onClick, onLike, primaryColor }) => (
+  <div
+    onClick={() => onClick(video)}
     className="group relative aspect-[2/3] bg-slate-900 rounded-[2rem] overflow-hidden cursor-pointer shadow-2xl transition-all duration-500 hover:scale-[1.05] ring-1 ring-white/5 hover:ring-white/20"
   >
     <img src={video.thumbnail} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={video.title}/>
     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent opacity-60 group-hover:opacity-80 transition-opacity"/>
-    
+
     {/* Badges */}
     <div className="absolute top-4 left-4 flex flex-col gap-2">
       <div className="bg-black/60 premium-blur px-3 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-widest border border-white/10">
         {video.year}
       </div>
+      {video.audioType && (
+        <div className={`premium-blur px-3 py-1 rounded-full text-[9px] font-black text-white uppercase tracking-widest border border-white/10 flex items-center gap-1 ${video.audioType === 'bg_audio' ? 'bg-emerald-600/80' : 'bg-purple-600/80'}`}>
+          {video.audioType === 'bg_audio' ? <><Volume2 size={10}/> БГ АУДИО</> : <><FileText size={10}/> СУБТИТРИ</>}
+        </div>
+      )}
     </div>
 
+    {/* Like Button */}
+    <button
+      onClick={(e) => { e.stopPropagation(); onLike && onLike(video.id); }}
+      className="absolute top-4 right-4 z-10 p-2.5 bg-black/40 premium-blur rounded-full border border-white/10 text-white hover:text-rose-500 hover:bg-rose-500/20 hover:border-rose-500/30 transition-all opacity-0 group-hover:opacity-100"
+    >
+      <Heart size={16} />
+    </button>
+
     <div className="absolute inset-0 p-6 flex flex-col justify-end transform transition-transform duration-500 group-hover:translate-y-[-8px]">
-      <div 
-        className="px-3 py-1 rounded-full w-fit mb-3 text-[9px] font-black text-white uppercase tracking-widest shadow-lg"
-        style={{ backgroundColor: video.streamType === 'download' ? '#10B981' : primaryColor }}
-      >
-        {video.streamType === 'download' ? 'БГ АУДИО' : 'СТРИЙМ'}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <div
+          className="px-3 py-1 rounded-full w-fit text-[9px] font-black text-white uppercase tracking-widest shadow-lg"
+          style={{ backgroundColor: video.streamType === 'download' ? '#10B981' : primaryColor }}
+        >
+          {video.streamType === 'download' ? 'БГ АУДИО' : 'СТРИЙМ'}
+        </div>
       </div>
       <h3 className="font-black text-white text-xl line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">{video.title}</h3>
-      
+
       <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 mt-4 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
         <span className="flex items-center gap-1"><Eye size={12}/> {(video.views || 0).toLocaleString()}</span>
-        <span className="flex items-center gap-1"><ThumbsUp size={12}/> {(video.likes || 0).toLocaleString()}</span>
+        <span className="flex items-center gap-1"><Heart size={12} className="text-rose-500"/> {(video.likes || 0).toLocaleString()}</span>
       </div>
     </div>
 
     {/* Hover Play Button */}
-    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
        <div className="w-16 h-16 rounded-full bg-white/10 premium-blur border border-white/20 flex items-center justify-center text-white scale-75 group-hover:scale-100 transition-transform">
           <Play fill="currentColor" size={24} className="ml-1" />
        </div>
@@ -247,6 +263,7 @@ export default function App() {
   const [activeCollection, setActiveCollection] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('all');
+  const [collectionSearch, setCollectionSearch] = useState('');
   
   // State: Admin
   const [adminTab, setAdminTab] = useState('dashboard');
@@ -460,6 +477,11 @@ export default function App() {
                 <div className="text-slate-400 text-sm mt-2 font-bold flex items-center gap-4">
                   <span className="flex items-center gap-1"><Clock size={14}/> {activeVideo.duration || 'N/A'}</span>
                   <span className="flex items-center gap-1"><Activity size={14}/> 1080p Premium</span>
+                  {activeVideo.audioType && (
+                    <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase ${activeVideo.audioType === 'bg_audio' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-purple-500/20 text-purple-400'}`}>
+                      {activeVideo.audioType === 'bg_audio' ? <><Volume2 size={12}/> БГ Аудио</> : <><FileText size={12}/> Субтитри</>}
+                    </span>
+                  )}
                 </div>
               </div>
               <button onClick={() => setActiveVideo(null)} className="pointer-events-auto p-5 bg-white/5 hover:bg-red-600 rounded-full text-white transition-all backdrop-blur-md group">
@@ -598,7 +620,7 @@ export default function App() {
             {/* Main Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-10">
               {filteredVideos.map(v => (
-                <VideoCard key={v.id} video={v} onClick={setActiveVideo} primaryColor={settings.primaryColor} />
+                <VideoCard key={v.id} video={v} onClick={setActiveVideo} onLike={(id) => handleStatUpdate(id, 'likes')} primaryColor={settings.primaryColor} />
               ))}
             </div>
 
@@ -615,28 +637,79 @@ export default function App() {
         {/* --- COLLECTIONS VIEW --- */}
         {view === 'collections' && (
           <div className="pt-40 pb-32 px-10 max-w-[1600px] mx-auto min-h-screen">
-            <h1 className="text-6xl font-black text-white mb-16 flex items-center gap-8">
+            <h1 className="text-6xl font-black text-white mb-10 flex items-center gap-8">
               <Layers size={60} style={{ color: settings.primaryColor }}/> Колекции
             </h1>
+
+            {/* Collections Search */}
+            <div className="relative w-full max-w-2xl mb-16">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={24}/>
+              <input
+                value={collectionSearch}
+                onChange={e => setCollectionSearch(e.target.value)}
+                placeholder="Търсене на колекции..."
+                className="w-full bg-white/5 border border-white/10 p-7 pl-16 rounded-[2.5rem] text-white focus:ring-2 outline-none transition-all text-xl backdrop-blur-xl focus:bg-white/10 shadow-2xl"
+                style={{ '--tw-ring-color': settings.primaryColor }}
+              />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-12">
-              {collections.map(col => (
-                 <div 
-                  key={col.id} 
-                  onClick={() => { setActiveCollection(col); setView('home'); window.scrollTo(0,0); }} 
-                  className="group relative bg-slate-900 aspect-[16/8] rounded-[4rem] overflow-hidden cursor-pointer shadow-3xl ring-1 ring-white/10 hover:ring-white/40 transition-all"
-                >
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-transparent z-10"/>
-                    <div className="absolute bottom-12 left-12 right-12 z-20">
-                      <div className="w-12 h-1.5 rounded-full mb-6 opacity-60" style={{ backgroundColor: settings.primaryColor }} />
-                      <h3 className="text-4xl font-black text-white mb-4 group-hover:translate-x-3 transition-transform">{col.title}</h3>
-                      <p className="text-slate-400 text-lg font-medium line-clamp-2 max-w-md">{col.description}</p>
-                      <div className="mt-8 flex items-center gap-4 text-xs font-black uppercase tracking-widest text-slate-500">
-                        <span className="flex items-center gap-2"><Film size={14}/> {col.videoIds.length} Заглавия</span>
+              {collections
+                .filter(col => col.title.toLowerCase().includes(collectionSearch.toLowerCase()) || col.description.toLowerCase().includes(collectionSearch.toLowerCase()))
+                .map(col => {
+                  const colVideos = col.videoIds.map(vid => videos.find(v => v.id === vid)).filter(Boolean);
+                  return (
+                   <div
+                    key={col.id}
+                    onClick={() => { setActiveCollection(col); setView('home'); window.scrollTo(0,0); }}
+                    className="group relative bg-slate-900 aspect-[16/9] rounded-[4rem] overflow-hidden cursor-pointer shadow-3xl ring-1 ring-white/10 hover:ring-white/40 transition-all"
+                  >
+                      {/* Thumbnail Grid Background */}
+                      {colVideos.length > 0 && (
+                        <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 gap-0.5 opacity-40 group-hover:opacity-60 transition-opacity">
+                          {colVideos.slice(0, 6).map((v, i) => (
+                            <div key={v.id} className="overflow-hidden">
+                              <img src={v.thumbnail} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt=""/>
+                            </div>
+                          ))}
+                          {colVideos.length < 6 && [...Array(6 - Math.min(colVideos.length, 6))].map((_, i) => (
+                            <div key={`empty-${i}`} className="bg-slate-800"/>
+                          ))}
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-950/30 z-10"/>
+                      <div className="absolute bottom-10 left-10 right-10 z-20">
+                        <div className="w-12 h-1.5 rounded-full mb-5 opacity-60" style={{ backgroundColor: settings.primaryColor }} />
+                        <h3 className="text-3xl font-black text-white mb-3 group-hover:translate-x-3 transition-transform">{col.title}</h3>
+                        <p className="text-slate-400 text-sm font-medium line-clamp-2 max-w-md">{col.description}</p>
+                        <div className="mt-6 flex items-center gap-4 text-xs font-black uppercase tracking-widest text-slate-500">
+                          <span className="flex items-center gap-2"><Film size={14}/> {col.videoIds.length} Заглавия</span>
+                          {/* Thumbnail avatars */}
+                          <div className="flex -space-x-3 ml-2">
+                            {colVideos.slice(0, 4).map(v => (
+                              <div key={v.id} className="w-8 h-8 rounded-full border-2 border-slate-900 overflow-hidden">
+                                <img src={v.thumbnail} className="w-full h-full object-cover" alt=""/>
+                              </div>
+                            ))}
+                            {colVideos.length > 4 && (
+                              <div className="w-8 h-8 rounded-full border-2 border-slate-900 bg-slate-700 flex items-center justify-center text-[9px] font-bold text-white">
+                                +{colVideos.length - 4}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                 </div>
-              ))}
-              <div className="border-4 border-dashed border-white/5 rounded-[4rem] flex flex-col items-center justify-center p-12 text-center group hover:border-white/10 transition-all">
+                   </div>
+                  );
+                })}
+              {collections.filter(col => col.title.toLowerCase().includes(collectionSearch.toLowerCase()) || col.description.toLowerCase().includes(collectionSearch.toLowerCase())).length === 0 && collectionSearch && (
+                <div className="col-span-full py-32 text-center">
+                  <Search size={60} className="mx-auto text-slate-800 mb-6" />
+                  <h3 className="text-2xl font-black text-white mb-2">Няма намерени колекции</h3>
+                  <p className="text-slate-500 font-medium">Опитайте с друго име на колекция.</p>
+                </div>
+              )}
+              <div className="border-4 border-dashed border-white/5 rounded-[4rem] flex flex-col items-center justify-center p-12 text-center group hover:border-white/10 transition-all aspect-[16/9]">
                 <HelpCircle size={48} className="text-slate-800 mb-6" />
                 <h4 className="text-slate-500 font-black uppercase tracking-widest text-sm">Очаквайте още колекции скоро</h4>
               </div>
@@ -809,16 +882,17 @@ export default function App() {
                         <h2 className="text-3xl font-black text-white mb-10">{editingVideoId ? "Редактиране на Видео" : "Добавяне на Ново Видео"}</h2>
                         <form onSubmit={e => {
                            e.preventDefault(); const d = new FormData(e.target);
-                           const vData = { 
-                             title: d.get('title'), 
-                             year: d.get('year'), 
-                             streamType: d.get('type'), 
-                             embedUrl: d.get('embed'), 
-                             downloadUrl: d.get('download'), 
-                             thumbnail: d.get('thumb'), 
+                           const vData = {
+                             title: d.get('title'),
+                             year: d.get('year'),
+                             streamType: d.get('type'),
+                             embedUrl: d.get('embed'),
+                             downloadUrl: d.get('download'),
+                             thumbnail: d.get('thumb'),
                              description: d.get('desc'),
                              type: d.get('category'),
-                             duration: d.get('duration')
+                             duration: d.get('duration'),
+                             audioType: d.get('audioType')
                            };
                            if (editingVideoId) handleVideoAction(editingVideoId, 'edit', vData); 
                            else handleVideoAction(null, 'add', vData);
@@ -856,6 +930,13 @@ export default function App() {
                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Времетраене</label>
                              <input name="duration" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.duration : ""} placeholder="напр. 95 min" className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none"/>
                            </div>
+                           <div className="space-y-2">
+                             <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Аудио Тип</label>
+                             <select name="audioType" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.audioType : "bg_audio"} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none">
+                                <option value="bg_audio">БГ Аудио</option>
+                                <option value="subtitles">Субтитри</option>
+                             </select>
+                           </div>
                            <div className="lg:col-span-3 space-y-2">
                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Описание</label>
                              <textarea name="desc" rows={4} defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.description : ""} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none resize-none"/>
@@ -891,6 +972,7 @@ export default function App() {
                                     <span className="flex items-center gap-1"><Calendar size={12}/> {v.year}</span>
                                     <span className="flex items-center gap-1"><Eye size={12}/> {v.views}</span>
                                     <span className={`px-2 py-0.5 rounded-md ${v.streamType === 'download' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>{v.streamType}</span>
+                                    {v.audioType && <span className={`px-2 py-0.5 rounded-md ${v.audioType === 'bg_audio' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-purple-500/10 text-purple-400'}`}>{v.audioType === 'bg_audio' ? 'БГ Аудио' : 'Субтитри'}</span>}
                                   </div>
                                 </div>
                               </div>
