@@ -14,11 +14,11 @@ import {
 } from 'lucide-react';
 
 /**
- * ANIMATIONBG - ВЕРСИЯ 13.2 (BUGFIX RELEASE)
- * ФИКСОВЕ:
- * 1. Player crash отстранен (useEffect dependency fix + stable handlers)
- * 2. Search input focus loss фикс (Components moved outside App function)
- * 3. Trending section visibility фикс (Fallback logic + threshold fix)
+ * ANIMATIONBG - ВЕРСИЯ 13.3 (STORAGE FIX)
+ * ФИКС: localStorage sync ВЕДНАГА след всяка промяна
+ * - Директен localStorage.setItem() във всички handlers
+ * - Премахнат проблемен useEffect
+ * - Cross-device sync чрез Export/Import
  */
 
 // --- КОНСТАНТИ ---
@@ -123,18 +123,15 @@ const SearchBar = memo(({ value, onChange, placeholder, primaryColor }) => (
 
 // --- TRENDING SECTION ---
 const TrendingSection = memo(({ videos, onVideoClick, settings }) => {
-  // Филтрираме най-гледаните
   const trendingVideos = [...videos]
     .filter(v => (v.views || 0) > 0)
     .sort((a, b) => (b.views || 0) - (a.views || 0))
     .slice(0, 10);
 
-  // FALLBACK: ако няма гледани, покажи последните добавени (за да не е празно)
   const displayVideos = trendingVideos.length > 0 
     ? trendingVideos 
     : [...videos].slice(0, 5);
 
-  // Показвай дори ако има само 1 филм в каталога
   if (displayVideos.length < 1) return null;
 
   return (
@@ -185,7 +182,6 @@ const EmbedPlayer = memo(({ video, onClose, settings, onStatUpdate }) => {
     'bottom-left': 'bottom-28 left-10'
   };
 
-  // Фикс за безкраен цикъл: views се обновяват само веднъж при монтаж на видеото
   useEffect(() => { 
     onStatUpdate(video.id, 'views'); 
   }, [video.id, onStatUpdate]); 
@@ -408,21 +404,22 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHash);
   }, [currentUser]);
 
-  // --- HANDLERS (STABLE WITH USECALLBACK) ---
+  // --- HANDLERS (ФИКСИРАН localStorage SYNC) ---
   const addLog = useCallback((msg, type='info') => {
     setActivityLog(prev => [{id: Date.now(), msg: String(msg), type, date: new Date().toLocaleTimeString()}, ...prev]);
   }, []);
 
+  // ✅ ФИКС: handleStatUpdate със директен localStorage sync
   const handleStatUpdate = useCallback((id, field) => {
-    setVideos(prev => prev.map(v => {
-      if (v.id === id) return { ...v, [field]: (v[field] || 0) + 1 };
-      return v;
-    }));
+    setVideos(prev => {
+      const updated = prev.map(v => {
+        if (v.id === id) return { ...v, [field]: (v[field] || 0) + 1 };
+        return v;
+      });
+      localStorage.setItem('savedVideos', JSON.stringify(updated)); // ✅ SYNC ВЕДНАГА!
+      return updated;
+    });
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('savedVideos', JSON.stringify(videos));
-  }, [videos]);
 
   const updateSettings = useCallback((newSettings) => {
     setSettings(prev => {
@@ -432,23 +429,38 @@ export default function App() {
     });
   }, []);
 
+  // ✅ ФИКС: handleAddVideo със директен localStorage sync
   const handleAddVideo = useCallback((data) => {
     const newVideo = { ...data, id: Date.now().toString(), views: 0, likes: 0, dislikes: 0 };
-    setVideos(prev => [newVideo, ...prev]);
+    setVideos(prev => {
+      const updated = [newVideo, ...prev];
+      localStorage.setItem('savedVideos', JSON.stringify(updated)); // ✅ SYNC ВЕДНАГА!
+      return updated;
+    });
     addLog(`Добавен нов филм: ${data.title}`, "success");
-    alert("Успешно добавяне!");
+    alert("✅ Успешно добавяне! Данните са запазени.");
   }, [addLog]);
 
+  // ✅ ФИКС: handleEditVideo със директен localStorage sync
   const handleEditVideo = useCallback((id, data) => {
-    setVideos(prev => prev.map(v => v.id === id ? { ...v, ...data } : v));
+    setVideos(prev => {
+      const updated = prev.map(v => v.id === id ? { ...v, ...data } : v);
+      localStorage.setItem('savedVideos', JSON.stringify(updated)); // ✅ SYNC ВЕДНАГА!
+      return updated;
+    });
     setEditingVideoId(null);
     addLog(`Обновен филм: ${data.title}`, "success");
-    alert("Промените са запазени успешно!");
+    alert("✅ Промените са запазени успешно!");
   }, [addLog]);
 
+  // ✅ ФИКС: handleDeleteVideo със директен localStorage sync
   const handleDeleteVideo = useCallback((id) => {
     if (window.confirm("Сигурни ли сте, че искате да изтриете този филм?")) {
-      setVideos(prev => prev.filter(v => v.id !== id));
+      setVideos(prev => {
+        const filtered = prev.filter(v => v.id !== id);
+        localStorage.setItem('savedVideos', JSON.stringify(filtered)); // ✅ SYNC ВЕДНАГА!
+        return filtered;
+      });
       addLog(`Изтрит филм с ID: ${id}`, "warning");
     }
   }, [addLog]);
@@ -600,7 +612,7 @@ export default function App() {
                               <option value="embed">Стрийминг</option>
                               <option value="download">Изтегляне</option>
                            </select>
-                           <input name="embed" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.embedUrl : ""} placeholder="Embed URL" className="bg-black/40 border border-white/5 p-5 rounded-2xl text-white outline-none"/>
+                           <input name="embed" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.embedUrl : ""} placeholder="Embed URL (напр: https://streamable.com/e/kwsdu0)" className="bg-black/40 border border-white/5 p-5 rounded-2xl text-white outline-none"/>
                            <input name="download" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.downloadUrl : ""} placeholder="Download URL" className="bg-black/40 border border-white/5 p-5 rounded-2xl text-white outline-none"/>
                            <textarea name="desc" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.description : ""} placeholder="Описание..." className="col-span-2 bg-black/40 border border-white/5 p-5 rounded-2xl text-white h-32 outline-none"/>
                            <div className="col-span-2 flex gap-4">
@@ -611,6 +623,7 @@ export default function App() {
                         </form>
                      </div>
                      <div className="bg-slate-900 p-8 rounded-[3rem] border border-white/5 shadow-2xl space-y-4">
+                        <h3 className="text-white font-black uppercase text-sm mb-6">📦 ИНВЕНТАР ({videos.length} филма)</h3>
                         {videos.map(v => (
                            <div key={v.id} className="flex items-center justify-between p-4 rounded-2xl border bg-black/40 border-white/5">
                               <div className="flex items-center gap-4">
@@ -631,18 +644,29 @@ export default function App() {
                   <div className="bg-slate-900 p-8 rounded-[3rem] border border-white/5 shadow-2xl space-y-12 text-white">
                      <section className="space-y-8">
                        <h2 className="text-xl font-black mb-6 flex items-center gap-3"><Zap style={{ color: settings.primaryColor }}/> Синхронизация</h2>
+                       <div className="p-6 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+                         <p className="text-blue-200 text-sm font-bold mb-2">💡 Как да синхронизираш между устройства:</p>
+                         <ol className="text-blue-100 text-xs space-y-1 ml-4 list-decimal">
+                           <li>Click ЕКСПОРТ на компютъра</li>
+                           <li>Прехвърли .json файла на телефона (email/cloud)</li>
+                           <li>Click ИМПОРТ на телефона и избери файла</li>
+                           <li>Готово! Всички филми ще са на двете устройства ✅</li>
+                         </ol>
+                       </div>
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <button onClick={() => {
-                            const blob = new Blob([JSON.stringify({ version: "13.2", videos, collections, inquiries, settings }, null, 2)], { type: 'application/json' });
+                            const blob = new Blob([JSON.stringify({ version: "13.3", videos, collections, inquiries, settings }, null, 2)], { type: 'application/json' });
                             const link = document.createElement('a');
                             link.href = URL.createObjectURL(blob);
                             link.download = `animationbg-backup-${new Date().toISOString().split('T')[0]}.json`;
                             link.click();
-                          }} className="flex flex-col items-center gap-4 p-8 rounded-[2rem] bg-green-600">
+                            alert('✅ Файлът е изтеглен! Сега го прехвърли на другото устройство.');
+                          }} className="flex flex-col items-center gap-4 p-8 rounded-[2rem] bg-green-600 hover:bg-green-500 transition-all">
                              <Download size={32}/>
                              <span className="font-black uppercase tracking-widest">ЕКСПОРТ</span>
+                             <span className="text-xs opacity-70">Изтегли данните</span>
                           </button>
-                          <label className="flex flex-col items-center gap-4 p-8 rounded-[2rem] bg-blue-600 cursor-pointer">
+                          <label className="flex flex-col items-center gap-4 p-8 rounded-[2rem] bg-blue-600 hover:bg-blue-500 transition-all cursor-pointer">
                              <input type="file" accept=".json" className="hidden" onChange={(e) => {
                                 const file = e.target.files[0];
                                 if(!file) return;
@@ -650,16 +674,25 @@ export default function App() {
                                 reader.onload = (ev) => {
                                   try {
                                     const data = JSON.parse(ev.target.result);
-                                    if(window.confirm("Замяна на данни?")) {
-                                      setVideos(data.videos); setSettings(data.settings);
+                                    if(window.confirm("Замяна на данни с тези от файла?")) {
+                                      setVideos(data.videos); 
+                                      setCollections(data.collections || []);
+                                      setInquiries(data.inquiries || []);
+                                      setSettings(data.settings);
+                                      localStorage.setItem('savedVideos', JSON.stringify(data.videos));
+                                      localStorage.setItem('savedCollections', JSON.stringify(data.collections || []));
+                                      localStorage.setItem('savedInquiries', JSON.stringify(data.inquiries || []));
+                                      localStorage.setItem('siteSettings', JSON.stringify(data.settings));
+                                      alert('✅ Данните са заредени! Презареждане...');
                                       window.location.reload();
                                     }
-                                  } catch { alert("Грешка!"); }
+                                  } catch { alert("❌ Грешен файл!"); }
                                 };
                                 reader.readAsText(file);
                              }} />
                              <FileUp size={32}/>
                              <span className="font-black uppercase tracking-widest">ИМПОРТ</span>
+                             <span className="text-xs opacity-70">Качи .json файл</span>
                           </label>
                        </div>
                      </section>
@@ -670,8 +703,10 @@ export default function App() {
                   <div className="bg-slate-900 p-8 rounded-[3rem] border border-white/5 shadow-2xl h-[600px] overflow-hidden flex flex-col text-white">
                      <h2 className="text-2xl font-black mb-6 flex items-center gap-3"><Activity style={{ color: settings.primaryColor }}/> Логове</h2>
                      <div className="flex-1 overflow-y-auto no-scrollbar space-y-2">
-                        {activityLog.map(l => (
-                           <div key={l.id} className="p-4 bg-black/40 border-l-4 rounded-xl flex justify-between items-center" style={{ borderLeftColor: l.type === 'error' ? 'red' : settings.primaryColor }}>
+                        {activityLog.length === 0 ? (
+                          <p className="text-slate-500 text-center py-12">Няма активност все още.</p>
+                        ) : activityLog.map(l => (
+                           <div key={l.id} className="p-4 bg-black/40 border-l-4 rounded-xl flex justify-between items-center" style={{ borderLeftColor: l.type === 'error' ? 'red' : (l.type === 'success' ? '#22c55e' : settings.primaryColor) }}>
                               <span className="text-xs">{l.msg}</span>
                               <span className="text-[10px] text-slate-600">{l.date}</span>
                            </div>
@@ -687,8 +722,45 @@ export default function App() {
       <footer className="py-24 border-t border-white/5 px-6 mt-32 bg-black/20 text-center">
         <h3 className="text-3xl font-black text-white tracking-tighter mb-4">{settings.siteName}</h3>
         <p className="text-slate-500 text-sm font-medium leading-relaxed max-w-xl mx-auto">{settings.texts.footerDescription}</p>
-        <div className="mt-8 text-[10px] font-black text-slate-700 uppercase tracking-[0.5em]">AnimationBG Platform v13.2</div>
+        <div className="mt-8 text-[10px] font-black text-slate-700 uppercase tracking-[0.5em]">AnimationBG Platform v13.3 • Storage Fix</div>
       </footer>
     </div>
   );
 }
+```
+
+---
+
+## ✅ КАКВО ФИКСИХ:
+```
+1. ❌ ПРЕМАХНАТ проблемния useEffect (ред 440-442 в стария код)
+
+2. ✅ handleAddVideo - localStorage.setItem ВЕДНАГА след state update
+
+3. ✅ handleEditVideo - localStorage.setItem ВЕДНАГА след state update
+
+4. ✅ handleDeleteVideo - localStorage.setItem ВЕДНАГА след state update
+
+5. ✅ handleStatUpdate - localStorage.setItem ВЕДНАГА след state update
+
+6. ✅ Import/Export с ПЪЛЕН sync на всички данни
+
+7. ✅ Успех съобщения с ✅ emoji
+
+8. ✅ Инструкции за синхронизация в Admin Panel
+```
+
+---
+
+## 🎯 ТЕСТВАНЕ:
+```
+ТЕСТ 1: Локално запазване
+1. Добави филм
+2. Refresh страницата (F5)
+3. Филмът Е ТАМ ✅
+
+ТЕСТ 2: Cross-device sync
+1. Desktop: Експорт → Download .json
+2. Изпрати файла на телефона (email/WhatsApp)
+3. Телефон: Импорт → Upload .json
+4. Всички филми са на телефона ✅
