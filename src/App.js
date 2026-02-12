@@ -288,6 +288,9 @@ export default function App() {
   const [sortBy, setSortBy] = useState('newest');
   const [videoInfoModal, setVideoInfoModal] = useState(null);
   const likeCooldownRef = useRef({});
+  const [adminCatalogSearch, setAdminCatalogSearch] = useState('');
+  const [selectedVideos, setSelectedVideos] = useState([]);
+  const inactivityTimerRef = useRef(null);
 
   // State: Admin
   const [adminTab, setAdminTab] = useState('dashboard');
@@ -420,6 +423,27 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('v14_liked', JSON.stringify(likedVideos));
   }, [likedVideos]);
+
+  // Auto-logout after 30 min inactivity
+  useEffect(() => {
+    if (!currentUser) return;
+    const resetTimer = () => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = setTimeout(() => {
+        localStorage.removeItem('adminSession');
+        setCurrentUser(null);
+        setView('home');
+        window.location.hash = '';
+      }, 30 * 60 * 1000);
+    };
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(ev => window.addEventListener(ev, resetTimer));
+    resetTimer();
+    return () => {
+      events.forEach(ev => window.removeEventListener(ev, resetTimer));
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+    };
+  }, [currentUser]);
 
   // Actions
   const handleLike = useCallback((id) => {
@@ -980,7 +1004,8 @@ export default function App() {
                  <p className="text-slate-500 mb-12 font-medium">Само за оторизиран персонал.</p>
                  <form onSubmit={(e)=>{ 
                    e.preventDefault(); 
-                   if(loginForm.email === 'admin@animaciqbg.net' && loginForm.password === 'admin123'){ 
+                   const savedPass = localStorage.getItem('v14_adminPass') || 'admin123';
+                   if(loginForm.email === 'admin@animaciqbg.net' && loginForm.password === savedPass){
                      setCurrentUser(MOCK_ADMIN); 
                      localStorage.setItem('adminSession', 'true'); 
                      setView('admin'); 
@@ -1021,21 +1046,26 @@ export default function App() {
 
                {[
                 {id: 'dashboard', icon: <Layout size={18}/>, label: 'Дашборд'},
-                {id: 'catalog', icon: <Film size={18}/>, label: 'Каталог'},
+                {id: 'catalog', icon: <Film size={18}/>, label: 'Каталог', badge: videos.length},
                 {id: 'collections', icon: <Layers size={18}/>, label: 'Колекции'},
-                {id: 'inquiries', icon: <Mail size={18}/>, label: 'Запитвания'},
+                {id: 'inquiries', icon: <Mail size={18}/>, label: 'Запитвания', badge: inquiries.filter(i => !i.status || i.status === 'unread').length},
                 {id: 'settings', icon: <Settings size={18}/>, label: 'Настройки'},
                 {id: 'texts', icon: <Type size={18}/>, label: 'Текстове'},
                 {id: 'logs', icon: <Activity size={18}/>, label: 'Логове'}
                ].map(tab => (
-                  <button 
-                    key={tab.id} 
-                    onClick={() => setAdminTab(tab.id)} 
-                    className={`w-full text-left p-6 rounded-[2rem] font-black uppercase tracking-widest text-[11px] flex items-center gap-4 transition-all
-                      ${adminTab === tab.id ? 'text-white shadow-xl' : 'text-slate-500 hover:bg-white/5'}`} 
+                  <button
+                    key={tab.id}
+                    onClick={() => setAdminTab(tab.id)}
+                    className={`w-full text-left p-6 rounded-[2rem] font-black uppercase tracking-widest text-[11px] flex items-center gap-4 transition-all relative
+                      ${adminTab === tab.id ? 'text-white shadow-xl' : 'text-slate-500 hover:bg-white/5'}`}
                     style={adminTab === tab.id ? { backgroundColor: settings.primaryColor, boxShadow: `0 10px 30px ${settings.primaryColor}30` } : {}}
                   >
                      {tab.icon} {tab.label}
+                     {tab.badge > 0 && (
+                       <span className={`ml-auto text-[9px] font-black px-2.5 py-1 rounded-full ${tab.id === 'inquiries' && adminTab !== tab.id ? 'bg-rose-500 text-white' : 'bg-white/10 text-slate-400'}`}>
+                         {tab.badge}
+                       </span>
+                     )}
                   </button>
                ))}
             </div>
@@ -1063,11 +1093,61 @@ export default function App() {
                         ))}
                      </div>
 
+                     {/* Quick Actions */}
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <button onClick={() => { setAdminTab('catalog'); setEditingVideoId(null); window.scrollTo(0,0); }}
+                          className="p-6 bg-slate-900 rounded-[2rem] border border-white/5 hover:border-white/20 transition-all flex items-center gap-4 group">
+                          <div className="p-3 rounded-2xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors"><Plus size={20} className="text-emerald-500"/></div>
+                          <div className="text-left"><p className="text-white font-black text-sm">Добави Видео</p><p className="text-slate-600 text-[10px] font-bold uppercase">Към каталога</p></div>
+                        </button>
+                        <button onClick={() => setAdminTab('inquiries')}
+                          className="p-6 bg-slate-900 rounded-[2rem] border border-white/5 hover:border-white/20 transition-all flex items-center gap-4 group">
+                          <div className="p-3 rounded-2xl bg-yellow-500/10 group-hover:bg-yellow-500/20 transition-colors"><MessageSquare size={20} className="text-yellow-500"/></div>
+                          <div className="text-left"><p className="text-white font-black text-sm">Запитвания</p><p className="text-slate-600 text-[10px] font-bold uppercase">{inquiries.filter(i => !i.status || i.status === 'unread').length} непрочетени</p></div>
+                        </button>
+                        <button onClick={() => setAdminTab('collections')}
+                          className="p-6 bg-slate-900 rounded-[2rem] border border-white/5 hover:border-white/20 transition-all flex items-center gap-4 group">
+                          <div className="p-3 rounded-2xl bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors"><Layers size={20} className="text-blue-500"/></div>
+                          <div className="text-left"><p className="text-white font-black text-sm">Колекции</p><p className="text-slate-600 text-[10px] font-bold uppercase">{collections.length} създадени</p></div>
+                        </button>
+                     </div>
+
+                     {/* Top 5 Stats */}
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/5 shadow-2xl">
+                          <h3 className="text-lg font-black text-white mb-6 flex items-center gap-3"><Eye size={18} className="text-emerald-500"/> Топ 5 Най-гледани</h3>
+                          <div className="space-y-3">
+                            {[...videos].sort((a,b) => (b.views||0) - (a.views||0)).slice(0, 5).map((v, i) => (
+                              <div key={v.id} className="flex items-center gap-4 p-3 bg-black/30 rounded-xl">
+                                <span className="text-lg font-black text-slate-600 w-8 text-center">{i+1}</span>
+                                <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0"><img src={v.thumbnail} className="w-full h-full object-cover" alt=""/></div>
+                                <div className="flex-1 min-w-0"><p className="text-white font-bold text-sm truncate">{v.title}</p></div>
+                                <span className="text-emerald-400 text-xs font-black">{(v.views||0).toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/5 shadow-2xl">
+                          <h3 className="text-lg font-black text-white mb-6 flex items-center gap-3"><Heart size={18} className="text-rose-500"/> Топ 5 Най-харесвани</h3>
+                          <div className="space-y-3">
+                            {[...videos].sort((a,b) => (b.likes||0) - (a.likes||0)).slice(0, 5).map((v, i) => (
+                              <div key={v.id} className="flex items-center gap-4 p-3 bg-black/30 rounded-xl">
+                                <span className="text-lg font-black text-slate-600 w-8 text-center">{i+1}</span>
+                                <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0"><img src={v.thumbnail} className="w-full h-full object-cover" alt=""/></div>
+                                <div className="flex-1 min-w-0"><p className="text-white font-bold text-sm truncate">{v.title}</p></div>
+                                <span className="text-rose-400 text-xs font-black">{(v.likes||0).toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                     </div>
+
                      <div className="bg-slate-900 p-10 rounded-[3rem] border border-white/5 shadow-3xl">
                         <h2 className="text-3xl font-black text-white mb-10 flex items-center gap-4">
                           <Activity style={{ color: settings.primaryColor }} /> Последна Активност
                         </h2>
                         <div className="space-y-4">
+                          {activityLog.length === 0 && <p className="text-center py-10 text-slate-700 font-black uppercase tracking-widest text-sm">Няма скорошна активност</p>}
                           {activityLog.slice(0, 5).map(l => (
                              <div key={l.id} className="p-5 bg-black/40 rounded-2xl border border-white/5 flex items-center justify-between">
                                 <div className="flex items-center gap-4">
@@ -1166,15 +1246,39 @@ export default function App() {
                      </div>
 
                      <div className="grid grid-cols-1 gap-4">
-                        <div className="flex items-center justify-between mb-4 px-4">
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 px-4 gap-4">
                           <h3 className="text-xl font-black text-white">Инвентар ({videos.length})</h3>
-                          <div className="flex gap-2">
-                            <button className="p-3 bg-white/5 text-slate-500 rounded-xl hover:text-white transition-colors"><RefreshCw size={18}/></button>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" size={16}/>
+                              <input value={adminCatalogSearch} onChange={e => setAdminCatalogSearch(e.target.value)} placeholder="Търси във видеа..." className="bg-white/5 border border-white/10 pl-10 pr-4 py-2.5 rounded-xl text-white text-sm outline-none focus:ring-1 w-56" style={{'--tw-ring-color': settings.primaryColor}}/>
+                            </div>
+                            {selectedVideos.length > 0 && (
+                              <button onClick={() => {
+                                if (window.confirm(`Изтриване на ${selectedVideos.length} видеа?`)) {
+                                  setVideos(prev => prev.filter(v => !selectedVideos.includes(v.id)));
+                                  addLog(`Масово изтриване: ${selectedVideos.length} видеа`, 'warning');
+                                  showToast(`${selectedVideos.length} видеа са изтрити!`, 'info');
+                                  setSelectedVideos([]);
+                                }
+                              }} className="px-4 py-2.5 bg-rose-500/10 text-rose-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all flex items-center gap-2">
+                                <Trash2 size={14}/> Изтрий ({selectedVideos.length})
+                              </button>
+                            )}
+                            {selectedVideos.length > 0 && (
+                              <button onClick={() => setSelectedVideos([])} className="px-4 py-2.5 bg-white/5 text-slate-400 rounded-xl text-xs font-black uppercase hover:text-white transition-colors">
+                                Откажи
+                              </button>
+                            )}
                           </div>
                         </div>
-                        {videos.map(v => (
-                           <div key={v.id} className="flex items-center justify-between p-6 rounded-[2rem] border bg-slate-900/50 border-white/5 transition-all hover:bg-slate-800/50 group">
+                        {videos.filter(v => v.title.toLowerCase().includes(adminCatalogSearch.toLowerCase())).map(v => (
+                           <div key={v.id} className={`flex items-center justify-between p-6 rounded-[2rem] border transition-all hover:bg-slate-800/50 group ${selectedVideos.includes(v.id) ? 'bg-slate-800/70 border-white/20' : 'bg-slate-900/50 border-white/5'}`}>
                               <div className="flex items-center gap-6">
+                                <button onClick={(e) => { e.stopPropagation(); setSelectedVideos(prev => prev.includes(v.id) ? prev.filter(x => x !== v.id) : [...prev, v.id]); }}
+                                  className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all ${selectedVideos.includes(v.id) ? 'border-white/40 bg-white/20' : 'border-white/10 hover:border-white/30'}`}>
+                                  {selectedVideos.includes(v.id) && <Check size={14} className="text-white"/>}
+                                </button>
                                 <div className="relative w-16 h-20 rounded-2xl overflow-hidden shadow-xl">
                                   <img src={v.thumbnail} className="w-full h-full object-cover" alt=""/>
                                   <div className="absolute inset-0 bg-black/20" />
@@ -1264,6 +1368,36 @@ export default function App() {
 
                      <section className="space-y-10 border-t border-white/5 pt-16">
                         <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
+                          <Globe style={{ color: settings.primaryColor }}/> Име и Лого на Сайта
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Име на Платформата</label>
+                              <input value={settings.siteName} onChange={e => setSettings({...settings, siteName: e.target.value})} className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                           </div>
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">URL на Логото</label>
+                              <input value={settings.logoUrl} onChange={e => setSettings({...settings, logoUrl: e.target.value})} placeholder="https://example.com/logo.png" className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                           </div>
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Използвай Лого</label>
+                              <button onClick={() => setSettings({...settings, useLogo: !settings.useLogo})} className={`px-6 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${settings.useLogo ? 'bg-emerald-500 text-white' : 'bg-white/5 text-slate-500 hover:bg-white/10'}`}>
+                                {settings.useLogo ? 'Активно' : 'Неактивно'}
+                              </button>
+                           </div>
+                           {settings.useLogo && settings.logoUrl && (
+                             <div className="space-y-4">
+                               <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Преглед</label>
+                               <div className="bg-black/40 border border-white/10 p-6 rounded-2xl flex items-center justify-center">
+                                 <img src={settings.logoUrl} alt="Logo Preview" className="h-12 w-auto object-contain"/>
+                               </div>
+                             </div>
+                           )}
+                        </div>
+                     </section>
+
+                     <section className="space-y-10 border-t border-white/5 pt-16">
+                        <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
                           <Palette style={{ color: settings.primaryColor }}/> Визуален Дизайн
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -1286,16 +1420,70 @@ export default function App() {
                            </div>
                         </div>
                      </section>
+
+                     <section className="space-y-10 border-t border-white/5 pt-16">
+                        <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
+                          <Lock style={{ color: settings.primaryColor }}/> Смяна на Парола
+                        </h2>
+                        <form onSubmit={e => {
+                          e.preventDefault();
+                          const d = new FormData(e.target);
+                          const curPass = d.get('currentPass');
+                          const newPass = d.get('newPass');
+                          const confirmPass = d.get('confirmPass');
+                          const savedPass = localStorage.getItem('v14_adminPass') || 'admin123';
+                          if (curPass !== savedPass) { showToast('Грешна текуща парола!', 'error'); return; }
+                          if (newPass.length < 6) { showToast('Паролата трябва да е поне 6 символа!', 'error'); return; }
+                          if (newPass !== confirmPass) { showToast('Паролите не съвпадат!', 'error'); return; }
+                          localStorage.setItem('v14_adminPass', newPass);
+                          addLog('Паролата е сменена успешно', 'success');
+                          showToast('Паролата е сменена успешно!', 'success');
+                          e.target.reset();
+                        }} className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Текуща Парола</label>
+                              <input name="currentPass" type="password" required className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                           </div>
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Нова Парола</label>
+                              <input name="newPass" type="password" required minLength={6} className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                           </div>
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Потвърди Паролата</label>
+                              <input name="confirmPass" type="password" required minLength={6} className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                           </div>
+                           <div className="md:col-span-3">
+                              <button type="submit" className="px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-sm text-white hover:scale-[1.02] active:scale-95 transition-all shadow-lg" style={{ backgroundColor: settings.primaryColor }}>
+                                Смени Паролата
+                              </button>
+                           </div>
+                        </form>
+                     </section>
                   </div>
                )}
 
                {adminTab === 'inquiries' && (
                   <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-white/5 shadow-3xl space-y-10">
-                     <div className="flex justify-between items-center">
+                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <h2 className="text-3xl font-black text-white flex items-center gap-4">
                           <MessageSquare style={{ color: settings.primaryColor }} /> Входяща Кутия
                         </h2>
-                        <span className="bg-white/5 px-4 py-2 rounded-xl text-xs font-bold text-slate-500 border border-white/10 uppercase tracking-widest">{inquiries.length} СЪОБЩЕНИЯ</span>
+                        <div className="flex items-center gap-3">
+                          <span className="bg-white/5 px-4 py-2 rounded-xl text-xs font-bold text-slate-500 border border-white/10 uppercase tracking-widest">{inquiries.length} СЪОБЩЕНИЯ</span>
+                          {inquiries.length > 0 && (
+                            <button onClick={() => {
+                              const csv = ['Име,Имейл,Съобщение,Дата,Статус', ...inquiries.map(i =>
+                                `"${(i.name||'').replace(/"/g,'""')}","${(i.email||'').replace(/"/g,'""')}","${(i.message||'').replace(/"/g,'""')}","${i.date||''}","${i.status||'unread'}"`
+                              )].join('\n');
+                              const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+                              const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
+                              link.download = `inquiries_${Date.now()}.csv`; link.click();
+                              showToast('Запитванията са експортирани!', 'success');
+                            }} className="px-4 py-2 bg-emerald-500/10 text-emerald-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-2">
+                              <FileDown size={14}/> CSV
+                            </button>
+                          )}
+                        </div>
                      </div>
                      {inquiries.length === 0 ? (
                         <div className="py-32 text-center opacity-20">
@@ -1305,14 +1493,17 @@ export default function App() {
                      ) : (
                         <div className="grid grid-cols-1 gap-6">
                            {inquiries.map(inq => (
-                              <div key={inq.id} className="bg-black/40 border border-white/5 p-10 rounded-[2.5rem] hover:border-white/20 transition-all shadow-xl">
+                              <div key={inq.id} className={`border p-10 rounded-[2.5rem] hover:border-white/20 transition-all shadow-xl ${!inq.status || inq.status === 'unread' ? 'bg-black/40 border-white/10' : 'bg-black/20 border-white/5'}`}>
                                  <div className="flex justify-between items-start mb-8">
                                     <div className="flex gap-5 items-center">
-                                       <div className="w-16 h-16 bg-slate-800 rounded-3xl flex items-center justify-center font-black text-2xl text-white">
+                                       <div className={`w-16 h-16 rounded-3xl flex items-center justify-center font-black text-2xl text-white ${!inq.status || inq.status === 'unread' ? 'bg-slate-700' : 'bg-slate-800'}`}>
                                           {inq.name[0]}
                                        </div>
                                        <div>
-                                          <h4 className="text-xl font-black text-white">{inq.name}</h4>
+                                          <h4 className="text-xl font-black text-white flex items-center gap-3">
+                                            {inq.name}
+                                            {(!inq.status || inq.status === 'unread') && <span className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0"/>}
+                                          </h4>
                                           <p className="text-slate-500 font-bold flex items-center gap-2 mt-1">
                                             <Mail size={14} style={{ color: settings.primaryColor }}/> {inq.email}
                                           </p>
@@ -1320,9 +1511,17 @@ export default function App() {
                                     </div>
                                     <div className="flex flex-col items-end gap-3">
                                        <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{inq.date}</span>
-                                       <button onClick={() => { setInquiries(prev => prev.filter(x => x.id !== inq.id)); showToast("Съобщението е изтрито.", "warning"); }} className="p-3 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all">
-                                          <Trash2 size={20}/>
-                                       </button>
+                                       <div className="flex items-center gap-2">
+                                         <select value={inq.status || 'unread'} onChange={e => setInquiries(prev => prev.map(x => x.id === inq.id ? {...x, status: e.target.value} : x))}
+                                           className="bg-black/40 border border-white/10 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase text-white outline-none">
+                                           <option value="unread">Ново</option>
+                                           <option value="read">Прочетено</option>
+                                           <option value="replied">Отговорено</option>
+                                         </select>
+                                         <button onClick={() => { setInquiries(prev => prev.filter(x => x.id !== inq.id)); showToast("Съобщението е изтрито.", "warning"); }} className="p-3 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all">
+                                            <Trash2 size={20}/>
+                                         </button>
+                                       </div>
                                     </div>
                                  </div>
                                  <div className="bg-slate-950/50 p-8 rounded-3xl text-slate-300 leading-relaxed font-medium italic border border-white/5">
