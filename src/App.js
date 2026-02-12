@@ -14,7 +14,7 @@ import {
   Calendar, Database, Share2, Monitor, Smartphone, Tablet,
   Cloud
 } from 'lucide-react';
-import { pushToCloud, subscribeToCloud, firebaseEnabled, registerPresence, subscribeToPresence } from './cloudSync';
+import { pushToCloud, subscribeToCloud, firebaseEnabled } from './cloudSync';
 
 /**
  * ANIMATIONBG - ВЕРСИЯ 14.0 (PREMIUM PRODUCTION BUILD)
@@ -213,6 +213,24 @@ const SiteProtection = memo(() => {
   return null;
 });
 
+// --- LIKE SOUND EFFECT ---
+const playLikeSound = () => {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(1200, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+    osc.type = 'sine';
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.2);
+  } catch { /* Audio not supported */ }
+};
+
 // --- UI КОМПОНЕНТИ ---
 
 /**
@@ -265,20 +283,23 @@ const ConfirmDialog = memo(({ isOpen, title, message, onConfirm, onCancel }) => 
 /**
  * Video Card
  */
-const VideoCard = memo(({ video, onClick, onLike, isLiked, primaryColor }) => {
+const VideoCard = memo(({ video, onClick, onLike, isLiked, primaryColor, cardStyle = 'rounded', likeSoundEnabled = true }) => {
   const [animating, setAnimating] = useState(false);
 
   const handleHeartClick = (e) => {
     e.stopPropagation();
     setAnimating(true);
+    if (likeSoundEnabled) playLikeSound();
     onLike && onLike(video.id);
     setTimeout(() => setAnimating(false), 500);
   };
 
+  const radiusClass = cardStyle === 'square' ? 'rounded-xl' : cardStyle === 'pill' ? 'rounded-[3rem]' : 'rounded-[2rem]';
+
   return (
     <div
       onClick={() => onClick(video)}
-      className="group relative aspect-[2/3] bg-slate-900 rounded-[2rem] overflow-hidden cursor-pointer shadow-2xl transition-all duration-500 hover:scale-[1.05] ring-1 ring-white/5 hover:ring-white/20"
+      className={`group relative aspect-[2/3] bg-slate-900 ${radiusClass} overflow-hidden cursor-pointer shadow-2xl transition-all duration-500 hover:scale-[1.05] ring-1 ring-white/5 hover:ring-white/20`}
     >
       <img src={video.thumbnail} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={video.title}/>
       <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent opacity-60 group-hover:opacity-80 transition-opacity"/>
@@ -431,6 +452,8 @@ export default function App() {
     siteName: 'AnimationBG', logoUrl: '', useLogo: false, primaryColor: '#DC2626',
     visualEffect: 'none', watermarkEnabled: true, watermarkText: 'ANIMATIONBG PREMIUM',
     watermarkPosition: 'top-right', watermarkOpacity: 15, texts: DEFAULT_TEXTS,
+    showTrending: true, showRecentlyAdded: true, cardStyle: 'rounded',
+    heroSize: 'large', likeSoundEnabled: true,
     version: SCHEMA_VERSION
   });
 
@@ -439,7 +462,6 @@ export default function App() {
   const pushTimerRef = useRef(null);
   const initialSyncDoneRef = useRef(!firebaseEnabled); // Skip guard if Firebase disabled
   const [cloudConnected, setCloudConnected] = useState(false);
-  const [liveVisitors, setLiveVisitors] = useState(1);
 
   // Utils
   const showToast = useCallback((msg, type = 'info') => setToast({ msg, type }), []);
@@ -523,18 +545,6 @@ export default function App() {
       unsub();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Live Visitors: Presence tracking
-  useEffect(() => {
-    const unregister = registerPresence();
-    const unsubscribe = subscribeToPresence((count) => {
-      setLiveVisitors(Math.max(1, count));
-    });
-    return () => {
-      unregister();
-      unsubscribe();
-    };
   }, []);
 
   // Persistance + Cloud Push
@@ -752,10 +762,12 @@ export default function App() {
       {/* --- PREMIUM PLAYER OVERLAY --- */}
       {activeVideo && activeVideo.streamType === 'embed' && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-500">
-           <div className={`absolute ${settings.watermarkPosition === 'top-right' ? 'top-24 right-10' : 'top-24 left-10'} z-[70] pointer-events-none select-none`}
-                style={{ opacity: settings.watermarkOpacity / 100 }}>
-             <span className="text-white font-black text-2xl uppercase tracking-[0.2em] drop-shadow-2xl">{settings.watermarkText}</span>
-           </div>
+           {settings.watermarkEnabled !== false && (
+             <div className={`absolute ${settings.watermarkPosition === 'top-right' ? 'top-24 right-10' : 'top-24 left-10'} z-[70] pointer-events-none select-none`}
+                  style={{ opacity: settings.watermarkOpacity / 100 }}>
+               <span className="text-white font-black text-2xl uppercase tracking-[0.2em] drop-shadow-2xl">{settings.watermarkText}</span>
+             </div>
+           )}
            
            <div className="absolute top-0 left-0 right-0 p-10 z-[80] flex justify-between items-start bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-none">
               <div className="pointer-events-auto">
@@ -773,13 +785,6 @@ export default function App() {
                       {activeVideo.audioType === 'bg_audio' ? <><Volume2 size={12}/> БГ Аудио</> : <><FileText size={12}/> Субтитри</>}
                     </span>
                   )}
-                  <span className="flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    {liveVisitors} онлайн
-                  </span>
                 </div>
               </div>
               <button onClick={() => setActiveVideo(null)} className="pointer-events-auto p-5 bg-white/5 hover:bg-red-600 rounded-full text-white transition-all backdrop-blur-md group">
@@ -829,16 +834,6 @@ export default function App() {
            </div>
 
            <div className="flex items-center gap-6">
-              {/* Live Visitors Badge */}
-              <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10 premium-blur">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                </span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                  {liveVisitors} {liveVisitors === 1 ? 'ОНЛАЙН' : 'ОНЛАЙН'}
-                </span>
-              </div>
               {currentUser && (
                 <div className="hidden md:flex items-center gap-4 bg-white/5 p-2 rounded-full border border-white/10 premium-blur">
                    <button
@@ -895,18 +890,6 @@ export default function App() {
                 </button>
               </>
             )}
-            {/* Mobile Live Visitors */}
-            <div className="mt-auto pt-6 border-t border-white/10">
-              <div className="flex items-center gap-2 px-4 py-3 bg-white/5 rounded-2xl border border-white/10">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                </span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                  {liveVisitors} ОНЛАЙН
-                </span>
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -917,7 +900,7 @@ export default function App() {
           <div className="pt-40 pb-32 px-10 max-w-[1600px] mx-auto">
             {/* Header Section */}
             <div className="mb-20">
-              <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black text-white mb-6 tracking-tighter leading-none">
+              <h1 className={`font-black text-white mb-6 tracking-tighter leading-none ${settings.heroSize === 'small' ? 'text-3xl sm:text-5xl lg:text-6xl' : settings.heroSize === 'medium' ? 'text-4xl sm:text-6xl lg:text-7xl' : 'text-5xl sm:text-7xl lg:text-8xl'}`}>
                 {activeCollection ? activeCollection.title : settings.texts.homeTitle}
               </h1>
               <p className="text-slate-400 text-xl font-medium max-w-2xl leading-relaxed">
@@ -969,7 +952,7 @@ export default function App() {
             </div>
 
             {/* Trending Carousel with Arrows (Only on main page) */}
-            {!searchQuery && !activeCollection && filter === 'all' && trendingVideos.length > 0 && (
+            {settings.showTrending !== false && !searchQuery && !activeCollection && filter === 'all' && trendingVideos.length > 0 && (
               <div className="mb-32">
                 <div className="flex items-center gap-4 mb-10">
                   <h2 className="text-3xl font-black text-white tracking-tighter uppercase flex items-center gap-3">
@@ -1049,7 +1032,7 @@ export default function App() {
             )}
 
             {/* Recently Added Section (Only on main page) */}
-            {!searchQuery && !activeCollection && filter === 'all' && recentlyAdded.length > 0 && (
+            {settings.showRecentlyAdded !== false && !searchQuery && !activeCollection && filter === 'all' && recentlyAdded.length > 0 && (
               <div className="mb-32">
                 <div className="flex items-center gap-4 mb-10">
                   <h2 className="text-3xl font-black text-white tracking-tighter uppercase flex items-center gap-3">
@@ -1097,7 +1080,7 @@ export default function App() {
             {/* Main Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-10">
               {paginatedVideos.map(v => (
-                <VideoCard key={v.id} video={v} onClick={setVideoInfoModal} onLike={handleLike} isLiked={likedVideos.includes(v.id)} primaryColor={settings.primaryColor} />
+                <VideoCard key={v.id} video={v} onClick={setVideoInfoModal} onLike={handleLike} isLiked={likedVideos.includes(v.id)} primaryColor={settings.primaryColor} cardStyle={settings.cardStyle} likeSoundEnabled={settings.likeSoundEnabled} />
               ))}
             </div>
 
@@ -1761,6 +1744,106 @@ export default function App() {
                                 <option value="sakura">Сакура (Пролет)</option>
                                 <option value="fireflies">Светулки (Лято)</option>
                               </select>
+                           </div>
+                        </div>
+                     </section>
+
+                     <section className="space-y-10 border-t border-white/5 pt-16">
+                        <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
+                          <Stamp style={{ color: settings.primaryColor }}/> Воден Знак (Watermark)
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Воден Знак Активен</label>
+                              <button onClick={() => setSettings({...settings, watermarkEnabled: !settings.watermarkEnabled})} className={`px-6 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${settings.watermarkEnabled ? 'bg-emerald-500 text-white' : 'bg-white/5 text-slate-500 hover:bg-white/10'}`}>
+                                {settings.watermarkEnabled ? 'Активно' : 'Неактивно'}
+                              </button>
+                           </div>
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Текст на Водния Знак</label>
+                              <input value={settings.watermarkText} onChange={e => setSettings({...settings, watermarkText: e.target.value})} className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                           </div>
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Позиция</label>
+                              <select value={settings.watermarkPosition} onChange={e => setSettings({...settings, watermarkPosition: e.target.value})} className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none">
+                                <option value="top-right">Горе Вдясно</option>
+                                <option value="top-left">Горе Вляво</option>
+                              </select>
+                           </div>
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Прозрачност: {settings.watermarkOpacity}%</label>
+                              <input type="range" min="5" max="100" value={settings.watermarkOpacity} onChange={e => setSettings({...settings, watermarkOpacity: parseInt(e.target.value)})} className="w-full accent-current" style={{ color: settings.primaryColor }}/>
+                           </div>
+                        </div>
+                     </section>
+
+                     <section className="space-y-10 border-t border-white/5 pt-16">
+                        <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
+                          <Layout style={{ color: settings.primaryColor }}/> Оформление на Сайта
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Показвай "В Тренда"</label>
+                              <button onClick={() => setSettings({...settings, showTrending: !settings.showTrending})} className={`px-6 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${settings.showTrending !== false ? 'bg-emerald-500 text-white' : 'bg-white/5 text-slate-500 hover:bg-white/10'}`}>
+                                {settings.showTrending !== false ? 'Видимо' : 'Скрито'}
+                              </button>
+                           </div>
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Показвай "Наскоро Добавени"</label>
+                              <button onClick={() => setSettings({...settings, showRecentlyAdded: !settings.showRecentlyAdded})} className={`px-6 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${settings.showRecentlyAdded !== false ? 'bg-emerald-500 text-white' : 'bg-white/5 text-slate-500 hover:bg-white/10'}`}>
+                                {settings.showRecentlyAdded !== false ? 'Видимо' : 'Скрито'}
+                              </button>
+                           </div>
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Стил на Картите</label>
+                              <div className="flex gap-3">
+                                {[
+                                  { id: 'rounded', label: 'Заоблени' },
+                                  { id: 'square', label: 'Квадратни' },
+                                  { id: 'pill', label: 'Капсула' }
+                                ].map(s => (
+                                  <button key={s.id} onClick={() => setSettings({...settings, cardStyle: s.id})}
+                                    className={`flex-1 px-4 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${settings.cardStyle === s.id ? 'text-white shadow-lg' : 'bg-white/5 text-slate-500 hover:bg-white/10'}`}
+                                    style={settings.cardStyle === s.id ? { backgroundColor: settings.primaryColor } : {}}>
+                                    {s.label}
+                                  </button>
+                                ))}
+                              </div>
+                           </div>
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Размер на Заглавието</label>
+                              <div className="flex gap-3">
+                                {[
+                                  { id: 'small', label: 'Малко' },
+                                  { id: 'medium', label: 'Средно' },
+                                  { id: 'large', label: 'Голямо' }
+                                ].map(s => (
+                                  <button key={s.id} onClick={() => setSettings({...settings, heroSize: s.id})}
+                                    className={`flex-1 px-4 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${(settings.heroSize || 'large') === s.id ? 'text-white shadow-lg' : 'bg-white/5 text-slate-500 hover:bg-white/10'}`}
+                                    style={(settings.heroSize || 'large') === s.id ? { backgroundColor: settings.primaryColor } : {}}>
+                                    {s.label}
+                                  </button>
+                                ))}
+                              </div>
+                           </div>
+                        </div>
+                     </section>
+
+                     <section className="space-y-10 border-t border-white/5 pt-16">
+                        <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
+                          <Volume2 style={{ color: settings.primaryColor }}/> Звук и Интеракции
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Звук при Лайк</label>
+                              <div className="flex items-center gap-4">
+                                <button onClick={() => setSettings({...settings, likeSoundEnabled: !settings.likeSoundEnabled})} className={`px-6 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${settings.likeSoundEnabled !== false ? 'bg-emerald-500 text-white' : 'bg-white/5 text-slate-500 hover:bg-white/10'}`}>
+                                  {settings.likeSoundEnabled !== false ? 'Активно' : 'Неактивно'}
+                                </button>
+                                <button onClick={() => playLikeSound()} className="px-4 py-4 rounded-2xl bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white transition-all text-xs font-black uppercase tracking-widest">
+                                  Тест
+                                </button>
+                              </div>
                            </div>
                         </div>
                      </section>
