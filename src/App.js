@@ -815,15 +815,12 @@ export default function App() {
         <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-10 w-full flex items-center justify-between">
            <div className="flex items-center gap-6 sm:gap-10 lg:gap-16">
              <button onClick={() => { window.location.hash = ''; setView('home'); setMobileMenuOpen(false); }} className="group">
-                {settings.useLogo && settings.logoUrl ? (
-                   <img src={settings.logoUrl} alt="Logo" className="h-12 w-auto object-contain transition-transform group-hover:scale-105" />
-                ) : (
-                   <span className="text-xl sm:text-2xl lg:text-4xl font-black text-white tracking-tighter">
+                <span className="text-xl sm:text-2xl lg:text-4xl font-black text-white tracking-tighter flex items-center gap-2 sm:gap-3">
+                      <img src={process.env.PUBLIC_URL + '/logo.png'} alt="Logo" className="h-8 sm:h-10 lg:h-14 w-auto object-contain transition-transform group-hover:scale-105" />
                       <span className="group-hover:tracking-normal transition-all duration-500">
                         <span style={{ color: settings.primaryColor }}>{settings.siteName.slice(0, -3)}</span>{settings.siteName.slice(-3)}
                       </span>
                    </span>
-                )}
              </button>
              <div className="hidden xl:flex items-center gap-10">
                {['home', 'collections', 'contact'].map(nav => (
