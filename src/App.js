@@ -88,6 +88,8 @@ const GlobalStyles = memo(() => (
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     .premium-blur { backdrop-filter: blur(20px) saturate(180%); }
+    @keyframes fadeScale { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
+    .animate-fade-scale { animation: fadeScale 0.4s ease-out forwards; }
   `}</style>
 ));
 
@@ -287,6 +289,9 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
   const [videoInfoModal, setVideoInfoModal] = useState(null);
+  const [trendingIndex, setTrendingIndex] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const VIDEOS_PER_PAGE = 12;
   const likeCooldownRef = useRef({});
   const [adminCatalogSearch, setAdminCatalogSearch] = useState('');
   const [selectedVideos, setSelectedVideos] = useState([]);
@@ -519,7 +524,7 @@ export default function App() {
   }, [videos, searchQuery, activeCollection, filter, sortBy]);
 
   const trendingVideos = useMemo(() => {
-    return [...videos].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 10);
+    return [...videos].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5);
   }, [videos]);
 
   const recentlyAdded = useMemo(() => {
@@ -529,6 +534,23 @@ export default function App() {
       return dB - dA;
     }).slice(0, 10);
   }, [videos]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeCollection, filter, sortBy]);
+
+  // Reset trending index when trending videos change
+  useEffect(() => {
+    setTrendingIndex(0);
+  }, [trendingVideos]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredVideos.length / VIDEOS_PER_PAGE);
+  const paginatedVideos = filteredVideos.slice(
+    (currentPage - 1) * VIDEOS_PER_PAGE,
+    currentPage * VIDEOS_PER_PAGE
+  );
 
   return (
     <div className="bg-[#050505] min-h-screen text-slate-300 overflow-x-hidden font-sans selection:bg-red-500/30">
@@ -784,7 +806,7 @@ export default function App() {
               ))}
             </div>
 
-            {/* Trending Carousel (Only on main page) */}
+            {/* Trending Carousel with Arrows (Only on main page) */}
             {!searchQuery && !activeCollection && filter === 'all' && trendingVideos.length > 0 && (
               <div className="mb-32">
                 <div className="flex items-center gap-4 mb-10">
@@ -792,24 +814,73 @@ export default function App() {
                     <TrendingUp style={{ color: settings.primaryColor }} /> В ТРЕНДА
                   </h2>
                   <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+                  {/* Arrow Controls */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mr-1">
+                      {trendingIndex + 1} / {trendingVideos.length}
+                    </span>
+                    <button
+                      onClick={() => setTrendingIndex(i => Math.max(0, i - 1))}
+                      disabled={trendingIndex === 0}
+                      className={`w-11 h-11 rounded-full flex items-center justify-center border transition-all duration-300
+                        ${trendingIndex === 0
+                          ? 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed'
+                          : 'bg-white/10 border-white/10 text-white hover:bg-white/20 hover:border-white/20 hover:scale-110 active:scale-95'}`}
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    <button
+                      onClick={() => setTrendingIndex(i => Math.min(trendingVideos.length - 1, i + 1))}
+                      disabled={trendingIndex >= trendingVideos.length - 1}
+                      className={`w-11 h-11 rounded-full flex items-center justify-center border transition-all duration-300
+                        ${trendingIndex >= trendingVideos.length - 1
+                          ? 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed'
+                          : 'text-white hover:scale-110 active:scale-95 hover:shadow-lg'}`}
+                      style={trendingIndex < trendingVideos.length - 1 ? { backgroundColor: settings.primaryColor, borderColor: settings.primaryColor, boxShadow: `0 4px 15px ${settings.primaryColor}40` } : {}}
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-8 overflow-x-auto pb-10 snap-x no-scrollbar">
-                  {trendingVideos.map(v => (
-                    <div key={v.id} onClick={() => setVideoInfoModal(v)} className="group relative flex-shrink-0 w-[350px] md:w-[500px] aspect-video rounded-[3rem] overflow-hidden cursor-pointer snap-start shadow-3xl ring-1 ring-white/10 transition-all hover:ring-white/30">
-                       <img src={v.thumbnail} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={v.title} />
-                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-90" />
-                       <div className="absolute top-8 right-8 premium-blur bg-white/10 border border-white/20 px-5 py-2 rounded-2xl flex items-center gap-3 text-white font-black text-xs">
-                          <Zap size={14} fill="currentColor" className="text-yellow-400" />
-                          {(v.views || 0).toLocaleString()} <span className="text-[10px] opacity-60">ГЛЕДАНИЯ</span>
-                       </div>
-                       <div className="absolute bottom-10 left-10 right-10">
-                          <div className="flex items-center gap-3 mb-3">
-                            <span className="bg-white/10 premium-blur text-white text-[10px] px-4 py-1.5 rounded-full font-black uppercase tracking-widest border border-white/10">{v.year}</span>
-                            <span className="text-white/60 text-[10px] font-black uppercase tracking-[0.3em]">Premium Experience</span>
-                          </div>
-                          <h3 className="text-3xl font-black text-white line-clamp-1 group-hover:translate-x-2 transition-transform">{v.title}</h3>
-                       </div>
-                    </div>
+                <div className="relative overflow-hidden">
+                  <div
+                    className="flex gap-8 transition-transform duration-700 ease-out pb-4"
+                    style={{ transform: `translateX(-${trendingIndex * (Math.min(500, window.innerWidth - 80) + 32)}px)` }}
+                  >
+                    {trendingVideos.map((v, idx) => (
+                      <div key={v.id} onClick={() => setVideoInfoModal(v)} className={`group relative flex-shrink-0 w-[350px] md:w-[500px] aspect-video rounded-[3rem] overflow-hidden cursor-pointer shadow-3xl ring-1 ring-white/10 transition-all duration-500 hover:ring-white/30 ${idx === trendingIndex ? 'scale-100 opacity-100' : 'scale-[0.95] opacity-60'}`}>
+                         <img src={v.thumbnail} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={v.title} />
+                         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-90" />
+                         <div className="absolute top-8 right-8 premium-blur bg-white/10 border border-white/20 px-5 py-2 rounded-2xl flex items-center gap-3 text-white font-black text-xs">
+                            <Zap size={14} fill="currentColor" className="text-yellow-400" />
+                            {(v.views || 0).toLocaleString()} <span className="text-[10px] opacity-60">ГЛЕДАНИЯ</span>
+                         </div>
+                         {/* Trending position badge */}
+                         <div className="absolute top-8 left-8">
+                           <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-white text-lg" style={{ backgroundColor: settings.primaryColor, boxShadow: `0 4px 15px ${settings.primaryColor}50` }}>
+                             {idx + 1}
+                           </div>
+                         </div>
+                         <div className="absolute bottom-10 left-10 right-10">
+                            <div className="flex items-center gap-3 mb-3">
+                              <span className="bg-white/10 premium-blur text-white text-[10px] px-4 py-1.5 rounded-full font-black uppercase tracking-widest border border-white/10">{v.year}</span>
+                              <span className="text-white/60 text-[10px] font-black uppercase tracking-[0.3em]">Premium Experience</span>
+                            </div>
+                            <h3 className="text-3xl font-black text-white line-clamp-1 group-hover:translate-x-2 transition-transform">{v.title}</h3>
+                         </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Dot indicators */}
+                <div className="flex items-center justify-center gap-2 mt-6">
+                  {trendingVideos.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setTrendingIndex(idx)}
+                      className={`rounded-full transition-all duration-300 ${idx === trendingIndex ? 'w-8 h-2' : 'w-2 h-2 bg-white/20 hover:bg-white/40'}`}
+                      style={idx === trendingIndex ? { backgroundColor: settings.primaryColor } : {}}
+                    />
                   ))}
                 </div>
               </div>
@@ -842,12 +913,94 @@ export default function App() {
               </div>
             )}
 
+            {/* Main Grid - Header with count */}
+            {filteredVideos.length > 0 && (
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-black text-white tracking-tight">
+                    {searchQuery ? 'Резултати' : activeCollection ? activeCollection.title : 'Всички филми'}
+                  </h2>
+                  <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-white/5 text-slate-500 border border-white/5">
+                    {filteredVideos.length} {filteredVideos.length === 1 ? 'филм' : 'филма'}
+                  </span>
+                </div>
+                {totalPages > 1 && (
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    Страница {currentPage} от {totalPages}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Main Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-10">
-              {filteredVideos.map(v => (
+              {paginatedVideos.map(v => (
                 <VideoCard key={v.id} video={v} onClick={setVideoInfoModal} onLike={handleLike} isLiked={likedVideos.includes(v.id)} primaryColor={settings.primaryColor} />
               ))}
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-16 mb-8">
+                {/* Previous Page */}
+                <button
+                  onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  disabled={currentPage === 1}
+                  className={`w-11 h-11 rounded-xl flex items-center justify-center border transition-all duration-300
+                    ${currentPage === 1
+                      ? 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed'
+                      : 'bg-white/10 border-white/10 text-white hover:bg-white/20 hover:scale-110 active:scale-95'}`}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+
+                {/* Page Numbers */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(page => {
+                    if (totalPages <= 7) return true;
+                    if (page === 1 || page === totalPages) return true;
+                    if (Math.abs(page - currentPage) <= 1) return true;
+                    return false;
+                  })
+                  .reduce((acc, page, idx, arr) => {
+                    if (idx > 0 && page - arr[idx - 1] > 1) {
+                      acc.push('...');
+                    }
+                    acc.push(page);
+                    return acc;
+                  }, [])
+                  .map((page, idx) =>
+                    page === '...' ? (
+                      <span key={`dots-${idx}`} className="text-slate-600 px-2 font-bold">...</span>
+                    ) : (
+                      <button
+                        key={page}
+                        onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                        className={`w-11 h-11 rounded-xl flex items-center justify-center font-black text-sm border transition-all duration-300
+                          ${currentPage === page
+                            ? 'text-white scale-110 shadow-lg'
+                            : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-white hover:scale-105'}`}
+                        style={currentPage === page ? { backgroundColor: settings.primaryColor, borderColor: settings.primaryColor, boxShadow: `0 4px 20px ${settings.primaryColor}40` } : {}}
+                      >
+                        {page}
+                      </button>
+                    )
+                  )}
+
+                {/* Next Page */}
+                <button
+                  onClick={() => { setCurrentPage(p => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  disabled={currentPage === totalPages}
+                  className={`w-11 h-11 rounded-xl flex items-center justify-center border transition-all duration-300
+                    ${currentPage === totalPages
+                      ? 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed'
+                      : 'text-white hover:scale-110 active:scale-95 hover:shadow-lg'}`}
+                  style={currentPage < totalPages ? { backgroundColor: settings.primaryColor, borderColor: settings.primaryColor, boxShadow: `0 4px 15px ${settings.primaryColor}40` } : {}}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            )}
 
             {filteredVideos.length === 0 && (
               <div className="py-40 text-center">
