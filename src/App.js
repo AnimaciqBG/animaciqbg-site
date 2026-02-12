@@ -2136,17 +2136,6 @@ export default function App() {
              <button className="text-slate-600 hover:text-white transition-colors"><Tablet size={24}/></button>
              <button className="text-slate-600 hover:text-white transition-colors"><Smartphone size={24}/></button>
           </div>
-          <div className="text-[10px] font-black text-slate-800 uppercase tracking-[0.8em]">
-            AnimationBG Platform v14.0 • Cloud Sync • Smart Features
-          </div>
-          {firebaseEnabled && (
-            <div className="mt-6 flex items-center justify-center gap-2 text-xs">
-              <Cloud size={14} className={cloudConnected ? 'text-emerald-500' : 'text-slate-600'} />
-              <span className={cloudConnected ? 'text-emerald-500/70' : 'text-slate-700'}>
-                {cloudConnected ? 'Cloud Sync Active' : 'Connecting...'}
-              </span>
-            </div>
-          )}
         </div>
       </footer>
     </div>
