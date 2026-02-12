@@ -8,6 +8,29 @@
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <title>AnimaciqBG</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Base-level content protection */
+      body { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+      img, video, iframe { -webkit-user-drag: none; -webkit-touch-callout: none; }
+      input, textarea, select { -webkit-user-select: text; -moz-user-select: text; user-select: text; }
+    </style>
+    <script>
+      // Early protection - runs before React loads
+      (function() {
+        // Block right-click
+        document.addEventListener('contextmenu', function(e) { e.preventDefault(); }, true);
+        // Block F12, Ctrl+Shift+I/J/C, Ctrl+U, Ctrl+S
+        document.addEventListener('keydown', function(e) {
+          if (e.keyCode === 123) { e.preventDefault(); return false; }
+          if (e.ctrlKey && e.shiftKey && [73, 74, 67, 75, 77].indexOf(e.keyCode) !== -1) { e.preventDefault(); return false; }
+          if (e.ctrlKey && (e.keyCode === 85 || e.keyCode === 83)) { e.preventDefault(); return false; }
+        }, true);
+        // Block drag on images
+        document.addEventListener('dragstart', function(e) {
+          if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') { e.preventDefault(); }
+        }, true);
+      })();
+    </script>
   </head>
   <body>
     <noscript>Трябва JavaScript за да работи сайтът.</noscript>

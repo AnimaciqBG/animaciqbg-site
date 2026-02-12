@@ -90,8 +90,128 @@ const GlobalStyles = memo(() => (
     .premium-blur { backdrop-filter: blur(20px) saturate(180%); }
     @keyframes fadeScale { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
     .animate-fade-scale { animation: fadeScale 0.4s ease-out forwards; }
+
+    /* --- SITE PROTECTION --- */
+    body { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+    img, video, iframe { -webkit-user-drag: none; -khtml-user-drag: none; -moz-user-drag: none; user-drag: none; pointer-events: auto; }
+    img { -webkit-touch-callout: none; }
+    input, textarea, select { -webkit-user-select: text; -moz-user-select: text; user-select: text; }
   `}</style>
 ));
+
+/**
+ * Site Protection - блокира DevTools, десен бутон, копиране, shortcuts
+ */
+const SiteProtection = memo(() => {
+  useEffect(() => {
+    // Block right-click context menu
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    // Block keyboard shortcuts for DevTools
+    const handleKeyDown = (e) => {
+      // F12
+      if (e.key === 'F12' || e.keyCode === 123) {
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+Shift+I (Inspect)
+      if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.keyCode === 73)) {
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+Shift+J (Console)
+      if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j' || e.keyCode === 74)) {
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+Shift+C (Element picker)
+      if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.keyCode === 67)) {
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+U (View Source)
+      if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.keyCode === 85)) {
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+S (Save Page)
+      if (e.ctrlKey && !e.shiftKey && (e.key === 'S' || e.key === 's' || e.keyCode === 83)) {
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+Shift+K (Firefox Console)
+      if (e.ctrlKey && e.shiftKey && (e.key === 'K' || e.key === 'k' || e.keyCode === 75)) {
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+Shift+M (Responsive Design Mode)
+      if (e.ctrlKey && e.shiftKey && (e.key === 'M' || e.key === 'm' || e.keyCode === 77)) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    // Block drag events on media
+    const handleDragStart = (e) => {
+      if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO' || e.target.tagName === 'IFRAME') {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    // Block copy (except in input/textarea)
+    const handleCopy = (e) => {
+      const tag = e.target.tagName;
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    // DevTools detection via window size difference
+    let devtoolsCheckInterval;
+    const checkDevTools = () => {
+      const widthThreshold = window.outerWidth - window.innerWidth > 160;
+      const heightThreshold = window.outerHeight - window.innerHeight > 160;
+      if (widthThreshold || heightThreshold) {
+        document.title = 'AnimaciqBG - DevTools Detected';
+      } else {
+        document.title = 'AnimaciqBG';
+      }
+    };
+
+    // Console log trap - makes console output useless
+    const consoleWarn = () => {
+      console.clear();
+      console.log('%cСТОП!', 'color:red;font-size:60px;font-weight:900;text-shadow:2px 2px black');
+      console.log('%cТова е функция за разработчици.', 'color:white;font-size:18px');
+      console.log('%cАко някой ви е казал да копирате нещо тук, това е измама.', 'color:orange;font-size:16px');
+    };
+    consoleWarn();
+    const consoleInterval = setInterval(consoleWarn, 5000);
+
+    document.addEventListener('contextmenu', handleContextMenu, true);
+    document.addEventListener('keydown', handleKeyDown, true);
+    document.addEventListener('dragstart', handleDragStart, true);
+    document.addEventListener('copy', handleCopy, true);
+
+    devtoolsCheckInterval = setInterval(checkDevTools, 1000);
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu, true);
+      document.removeEventListener('keydown', handleKeyDown, true);
+      document.removeEventListener('dragstart', handleDragStart, true);
+      document.removeEventListener('copy', handleCopy, true);
+      clearInterval(devtoolsCheckInterval);
+      clearInterval(consoleInterval);
+    };
+  }, []);
+
+  return null;
+});
 
 // --- UI КОМПОНЕНТИ ---
 
@@ -568,6 +688,7 @@ export default function App() {
   return (
     <div className="bg-[#050505] min-h-screen text-slate-300 overflow-x-hidden font-sans selection:bg-red-500/30">
       <GlobalStyles />
+      <SiteProtection />
       <VisualEffectLayer type={settings.visualEffect} />
       
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
@@ -652,6 +773,13 @@ export default function App() {
                       {activeVideo.audioType === 'bg_audio' ? <><Volume2 size={12}/> БГ Аудио</> : <><FileText size={12}/> Субтитри</>}
                     </span>
                   )}
+                  <span className="flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    {liveVisitors} онлайн
+                  </span>
                 </div>
               </div>
               <button onClick={() => setActiveVideo(null)} className="pointer-events-auto p-5 bg-white/5 hover:bg-red-600 rounded-full text-white transition-all backdrop-blur-md group">
