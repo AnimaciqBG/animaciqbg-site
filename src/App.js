@@ -14,7 +14,7 @@ import {
   Calendar, Database, Share2, Monitor, Smartphone, Tablet,
   Cloud
 } from 'lucide-react';
-import { pushToCloud, subscribeToCloud, firebaseEnabled } from './cloudSync';
+import { pushToCloud, subscribeToCloud, firebaseEnabled, registerPresence, subscribeToPresence } from './cloudSync';
 
 /**
  * ANIMATIONBG - ВЕРСИЯ 14.0 (PREMIUM PRODUCTION BUILD)
@@ -319,6 +319,7 @@ export default function App() {
   const pushTimerRef = useRef(null);
   const initialSyncDoneRef = useRef(!firebaseEnabled); // Skip guard if Firebase disabled
   const [cloudConnected, setCloudConnected] = useState(false);
+  const [liveVisitors, setLiveVisitors] = useState(1);
 
   // Utils
   const showToast = useCallback((msg, type = 'info') => setToast({ msg, type }), []);
@@ -402,6 +403,18 @@ export default function App() {
       unsub();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Live Visitors: Presence tracking
+  useEffect(() => {
+    const unregister = registerPresence();
+    const unsubscribe = subscribeToPresence((count) => {
+      setLiveVisitors(Math.max(1, count));
+    });
+    return () => {
+      unregister();
+      unsubscribe();
+    };
   }, []);
 
   // Persistance + Cloud Push
@@ -666,8 +679,7 @@ export default function App() {
                 {settings.useLogo && settings.logoUrl ? (
                    <img src={settings.logoUrl} alt="Logo" className="h-12 w-auto object-contain transition-transform group-hover:scale-105" />
                 ) : (
-                   <span className="text-4xl font-black text-white tracking-tighter flex items-center gap-2">
-                      <Sparkles className="animate-pulse" style={{ color: settings.primaryColor }} />
+                   <span className="text-4xl font-black text-white tracking-tighter">
                       <span className="group-hover:tracking-normal transition-all duration-500">
                         <span style={{ color: settings.primaryColor }}>{settings.siteName.slice(0, -3)}</span>{settings.siteName.slice(-3)}
                       </span>
@@ -689,6 +701,16 @@ export default function App() {
            </div>
 
            <div className="flex items-center gap-6">
+              {/* Live Visitors Badge */}
+              <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10 premium-blur">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                  {liveVisitors} {liveVisitors === 1 ? 'ОНЛАЙН' : 'ОНЛАЙН'}
+                </span>
+              </div>
               {currentUser && (
                 <div className="hidden md:flex items-center gap-4 bg-white/5 p-2 rounded-full border border-white/10 premium-blur">
                    <button
@@ -745,6 +767,18 @@ export default function App() {
                 </button>
               </>
             )}
+            {/* Mobile Live Visitors */}
+            <div className="mt-auto pt-6 border-t border-white/10">
+              <div className="flex items-center gap-2 px-4 py-3 bg-white/5 rounded-2xl border border-white/10">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                  {liveVisitors} ОНЛАЙН
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1100,7 +1134,7 @@ export default function App() {
           <div className="pt-40 pb-32 px-10 max-w-4xl mx-auto min-h-screen">
              <div className="text-center mb-20">
                <h1 className="text-7xl font-black text-white mb-6 tracking-tighter">Свържи се с нас</h1>
-               <p className="text-slate-500 text-xl font-medium">Имаш предложение или проблем? Ние сме тук.</p>
+               <p className="text-slate-500 text-xl font-medium">Имаш предложение, бъг или проблем? Ние сме тук да помогнем.</p>
              </div>
              <form
               onSubmit={(e) => {
@@ -1114,10 +1148,11 @@ export default function App() {
                 const d = new FormData(e.target);
                 const nameVal = d.get('name').trim();
                 const emailVal = d.get('email').trim();
+                const categoryVal = d.get('category');
                 const msgVal = d.get('message').trim();
                 if (nameVal.length < 2 || nameVal.length > 100) { showToast("Невалидно име.", "error"); return; }
                 if (msgVal.length < 5 || msgVal.length > 2000) { showToast("Съобщението трябва да е между 5 и 2000 символа.", "error"); return; }
-                const newInq = { id: Date.now(), name: nameVal, email: emailVal, message: msgVal, date: new Date().toLocaleDateString() };
+                const newInq = { id: Date.now(), name: nameVal, email: emailVal, category: categoryVal, message: msgVal, date: new Date().toLocaleDateString() };
                 setInquiries(prev => [newInq, ...prev]);
                 localStorage.setItem('v14_lastContact', today);
                 showToast("Съобщението е изпратено!", "success");
@@ -1136,8 +1171,36 @@ export default function App() {
                   </div>
                 </div>
                 <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-4">Категория</label>
+                  <div className="flex flex-wrap gap-3">
+                    {[
+                      { value: 'suggestion', label: 'Предложение', icon: <MessageSquare size={14}/> },
+                      { value: 'bug', label: 'Бъг / Проблем', icon: <AlertTriangle size={14}/> },
+                      { value: 'other', label: 'Друго', icon: <Mail size={14}/> }
+                    ].map(cat => (
+                      <label key={cat.value} className="relative cursor-pointer">
+                        <input type="radio" name="category" value={cat.value} defaultChecked={cat.value === 'suggestion'} className="peer sr-only" />
+                        <div className="flex items-center gap-2 px-6 py-4 rounded-2xl border border-white/10 bg-black/40 text-slate-400 text-sm font-bold transition-all peer-checked:text-white peer-checked:border-transparent peer-checked:shadow-lg hover:bg-white/5"
+                          style={{ '--peer-checked-bg': settings.primaryColor }}
+                        >
+                          <span className="peer-checked:hidden">{cat.icon}</span>
+                          {cat.label}
+                        </div>
+                        <style>{`
+                          input[value="${cat.value}"]:checked + div {
+                            background-color: ${settings.primaryColor};
+                            border-color: ${settings.primaryColor};
+                            color: white;
+                            box-shadow: 0 8px 20px ${settings.primaryColor}30;
+                          }
+                        `}</style>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-3">
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-4">Твоето Съобщение</label>
-                  <textarea required name="message" placeholder="Пиши ни тук..." rows={6} className="w-full bg-black/40 border border-white/10 p-6 rounded-3xl text-white outline-none resize-none focus:ring-2 transition-all" style={{'--tw-ring-color': settings.primaryColor}}/>
+                  <textarea required name="message" placeholder="Опиши подробно какво би искал да ни кажеш..." rows={6} className="w-full bg-black/40 border border-white/10 p-6 rounded-3xl text-white outline-none resize-none focus:ring-2 transition-all" style={{'--tw-ring-color': settings.primaryColor}}/>
                 </div>
                 <button type="submit" className="w-full py-7 bg-white text-black font-black uppercase tracking-[0.3em] rounded-3xl hover:scale-[1.02] active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-4">
                   ИЗПРАТИ СЪОБЩЕНИЕТО <Send size={20}/>
@@ -1625,8 +1688,8 @@ export default function App() {
                           <span className="bg-white/5 px-4 py-2 rounded-xl text-xs font-bold text-slate-500 border border-white/10 uppercase tracking-widest">{inquiries.length} СЪОБЩЕНИЯ</span>
                           {inquiries.length > 0 && (
                             <button onClick={() => {
-                              const csv = ['Име,Имейл,Съобщение,Дата,Статус', ...inquiries.map(i =>
-                                `"${(i.name||'').replace(/"/g,'""')}","${(i.email||'').replace(/"/g,'""')}","${(i.message||'').replace(/"/g,'""')}","${i.date||''}","${i.status||'unread'}"`
+                              const csv = ['Име,Имейл,Категория,Съобщение,Дата,Статус', ...inquiries.map(i =>
+                                `"${(i.name||'').replace(/"/g,'""')}","${(i.email||'').replace(/"/g,'""')}","${i.category||'other'}","${(i.message||'').replace(/"/g,'""')}","${i.date||''}","${i.status||'unread'}"`
                               )].join('\n');
                               const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
                               const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
@@ -1657,9 +1720,20 @@ export default function App() {
                                             {inq.name}
                                             {(!inq.status || inq.status === 'unread') && <span className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0"/>}
                                           </h4>
-                                          <p className="text-slate-500 font-bold flex items-center gap-2 mt-1">
-                                            <Mail size={14} style={{ color: settings.primaryColor }}/> {inq.email}
-                                          </p>
+                                          <div className="flex items-center gap-2 mt-1">
+                                            <p className="text-slate-500 font-bold flex items-center gap-2">
+                                              <Mail size={14} style={{ color: settings.primaryColor }}/> {inq.email}
+                                            </p>
+                                            {inq.category && (
+                                              <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border ${
+                                                inq.category === 'bug' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                                                inq.category === 'suggestion' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                                'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                                              }`}>
+                                                {inq.category === 'bug' ? 'БЪГ' : inq.category === 'suggestion' ? 'ПРЕДЛОЖЕНИЕ' : 'ДРУГО'}
+                                              </span>
+                                            )}
+                                          </div>
                                        </div>
                                     </div>
                                     <div className="flex flex-col items-end gap-3">
