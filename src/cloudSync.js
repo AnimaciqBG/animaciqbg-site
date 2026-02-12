@@ -4,7 +4,7 @@
  * Синхронизира данните между устройства чрез Firebase.
  * localStorage се запазва като локален кеш и fallback.
  */
-import { ref, set, onValue } from 'firebase/database';
+import { ref, set, onValue, onDisconnect, remove, serverTimestamp } from 'firebase/database';
 import { db, firebaseEnabled } from './firebaseConfig';
 
 const SYNC_PATH = 'sites/animaciqbg';
@@ -48,6 +48,40 @@ export function subscribeToCloud(callback) {
   });
 
   // Return the unsubscribe function directly (Firebase v9 API)
+  return unsubscribe;
+}
+
+/**
+ * Live Visitors Presence System
+ * Tracks online visitors in real-time via Firebase
+ */
+const SESSION_ID = Math.random().toString(36).substring(2) + Date.now().toString(36);
+const PRESENCE_PATH = 'sites/animaciqbg/presence';
+
+export function registerPresence() {
+  if (!firebaseEnabled || !db) return () => {};
+
+  const sessionRef = ref(db, `${PRESENCE_PATH}/${SESSION_ID}`);
+  set(sessionRef, { online: true, joinedAt: Date.now() });
+  onDisconnect(sessionRef).remove();
+
+  return () => {
+    remove(sessionRef);
+  };
+}
+
+export function subscribeToPresence(callback) {
+  if (!firebaseEnabled || !db) return () => {};
+
+  const presenceRef = ref(db, PRESENCE_PATH);
+  const unsubscribe = onValue(presenceRef, (snapshot) => {
+    const data = snapshot.val();
+    const count = data ? Object.keys(data).length : 0;
+    callback(count);
+  }, () => {
+    callback(0);
+  });
+
   return unsubscribe;
 }
 
