@@ -88,6 +88,12 @@ const GlobalStyles = memo(() => (
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     .premium-blur { backdrop-filter: blur(20px) saturate(180%); }
+    @media (max-width: 640px) {
+      .premium-blur { backdrop-filter: blur(10px) saturate(150%); }
+    }
+    @media (hover: none) and (pointer: coarse) {
+      button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
+    }
     @keyframes fadeScale { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
     .animate-fade-scale { animation: fadeScale 0.4s ease-out forwards; }
 
@@ -250,7 +256,7 @@ const Toast = memo(({ message, type, onClose }) => {
   }[type || 'info'];
 
   return (
-    <div className={`fixed bottom-10 right-10 z-[200] ${config.bg} text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-slide-in`}>
+    <div className={`fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-10 sm:right-10 z-[200] ${config.bg} text-white px-5 py-3 sm:px-6 sm:py-4 rounded-2xl shadow-2xl flex items-center gap-3 sm:gap-4 animate-slide-in`}>
       {config.icon}
       <span className="font-bold text-sm tracking-wide">{message}</span>
       <button onClick={onClose} className="hover:opacity-70 transition-opacity"><X size={16}/></button>
@@ -328,7 +334,7 @@ const VideoCard = memo(({ video, onClick, onLike, isLiked, primaryColor, cardSty
         <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} />
       </button>
 
-      <div className="absolute inset-0 p-6 flex flex-col justify-end transform transition-transform duration-500 group-hover:translate-y-[-8px]">
+      <div className="absolute inset-0 p-3 sm:p-4 lg:p-6 flex flex-col justify-end transform transition-transform duration-500 group-hover:translate-y-[-8px]">
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <div
             className="px-3 py-1 rounded-full w-fit text-[9px] font-black text-white uppercase tracking-widest shadow-lg"
@@ -337,7 +343,7 @@ const VideoCard = memo(({ video, onClick, onLike, isLiked, primaryColor, cardSty
             {video.streamType === 'download' ? 'БГ АУДИО' : 'СТРИЙМ'}
           </div>
         </div>
-        <h3 className="font-black text-white text-xl line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">{video.title}</h3>
+        <h3 className="font-black text-white text-sm sm:text-base lg:text-xl line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">{video.title}</h3>
 
         <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 mt-4 uppercase tracking-tighter md:opacity-0 md:group-hover:opacity-100 transition-opacity">
           <span className="flex items-center gap-1"><Eye size={12}/> {(video.views || 0).toLocaleString()}</span>
@@ -367,7 +373,7 @@ const FilterBar = memo(({ activeFilter, onFilterChange, primaryColor }) => {
   ];
 
   return (
-    <div className="flex gap-3 mb-12 overflow-x-auto no-scrollbar pb-2">
+    <div className="flex gap-2 sm:gap-3 mb-6 sm:mb-8 lg:mb-12 overflow-x-auto no-scrollbar pb-2">
       {filters.map(f => (
         <button
           key={f.id}
@@ -716,16 +722,16 @@ export default function App() {
       {/* --- VIDEO INFO MODAL --- */}
       {videoInfoModal && (
         <div className="fixed inset-0 z-[95] flex items-center justify-center p-6 bg-black/85 backdrop-blur-md">
-          <div className="bg-slate-900 border border-white/10 rounded-[3rem] max-w-lg w-full shadow-3xl overflow-hidden animate-slide-in">
+          <div className="bg-slate-900 border border-white/10 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[3rem] max-w-lg w-full shadow-3xl overflow-hidden animate-slide-in">
             <div className="relative aspect-video">
               <img src={videoInfoModal.thumbnail} className="w-full h-full object-cover" alt={videoInfoModal.title}/>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"/>
-              <button onClick={() => setVideoInfoModal(null)} className="absolute top-4 right-4 p-3 bg-black/50 premium-blur rounded-full text-white hover:bg-red-600 transition-all">
+              <button onClick={() => setVideoInfoModal(null)} className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 sm:p-3 bg-black/50 premium-blur rounded-full text-white hover:bg-red-600 transition-all">
                 <X size={20}/>
               </button>
             </div>
-            <div className="p-8 -mt-8 relative z-10">
-              <h3 className="text-2xl font-black text-white mb-3">{videoInfoModal.title}</h3>
+            <div className="p-5 sm:p-6 lg:p-8 -mt-8 relative z-10">
+              <h3 className="text-xl sm:text-2xl font-black text-white mb-3">{videoInfoModal.title}</h3>
               <div className="flex flex-wrap items-center gap-3 mb-5 text-[10px] font-black uppercase tracking-widest text-slate-500">
                 {videoInfoModal.year && <span className="flex items-center gap-1 bg-white/5 px-3 py-1.5 rounded-full"><Calendar size={12}/> {videoInfoModal.year}</span>}
                 {videoInfoModal.duration && <span className="flex items-center gap-1 bg-white/5 px-3 py-1.5 rounded-full"><Clock size={12}/> {videoInfoModal.duration}</span>}
@@ -763,21 +769,21 @@ export default function App() {
       {activeVideo && activeVideo.streamType === 'embed' && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-500">
            {settings.watermarkEnabled !== false && (
-             <div className={`absolute ${settings.watermarkPosition === 'top-right' ? 'top-24 right-10' : 'top-24 left-10'} z-[70] pointer-events-none select-none`}
+             <div className={`absolute ${settings.watermarkPosition === 'top-right' ? 'top-20 right-3 sm:top-24 sm:right-10' : 'top-20 left-3 sm:top-24 sm:left-10'} z-[70] pointer-events-none select-none`}
                   style={{ opacity: settings.watermarkOpacity / 100 }}>
-               <span className="text-white font-black text-2xl uppercase tracking-[0.2em] drop-shadow-2xl">{settings.watermarkText}</span>
+               <span className="text-white font-black text-sm sm:text-xl lg:text-2xl uppercase tracking-[0.1em] sm:tracking-[0.2em] drop-shadow-2xl">{settings.watermarkText}</span>
              </div>
            )}
            
-           <div className="absolute top-0 left-0 right-0 p-10 z-[80] flex justify-between items-start bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-none">
-              <div className="pointer-events-auto">
-                <h2 className="text-white text-3xl font-black flex items-center gap-4 drop-shadow-2xl">
+           <div className="absolute top-0 left-0 right-0 p-4 sm:p-6 lg:p-10 z-[80] flex justify-between items-start bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-none">
+              <div className="pointer-events-auto max-w-[70%] sm:max-w-none">
+                <h2 className="text-white text-base sm:text-xl lg:text-3xl font-black flex items-center gap-2 sm:gap-4 drop-shadow-2xl">
                   {activeVideo.title} 
                   <span className="text-[10px] px-3 py-1 rounded-full uppercase tracking-widest font-black animate-pulse" style={{ backgroundColor: settings.primaryColor }}>
                     {settings.texts.playerLiveBadge}
                   </span>
                 </h2>
-                <div className="text-slate-400 text-sm mt-2 font-bold flex items-center gap-4">
+                <div className="text-slate-400 text-[10px] sm:text-xs lg:text-sm mt-1 sm:mt-2 font-bold flex items-center gap-2 sm:gap-4 flex-wrap">
                   <span className="flex items-center gap-1"><Clock size={14}/> {activeVideo.duration || 'N/A'}</span>
                   <span className="flex items-center gap-1"><Activity size={14}/> 1080p Premium</span>
                   {activeVideo.audioType && (
@@ -787,8 +793,8 @@ export default function App() {
                   )}
                 </div>
               </div>
-              <button onClick={() => setActiveVideo(null)} className="pointer-events-auto p-5 bg-white/5 hover:bg-red-600 rounded-full text-white transition-all backdrop-blur-md group">
-                <X size={32} className="group-hover:rotate-90 transition-transform" />
+              <button onClick={() => setActiveVideo(null)} className="pointer-events-auto p-3 sm:p-4 lg:p-5 bg-white/5 hover:bg-red-600 rounded-full text-white transition-all backdrop-blur-md group">
+                <X size={24} className="sm:w-8 sm:h-8 group-hover:rotate-90 transition-transform" />
               </button>
            </div>
 
@@ -806,11 +812,11 @@ export default function App() {
 
       {/* --- NAVIGATION --- */}
       <nav className="fixed top-0 left-0 right-0 z-[90] bg-black/70 backdrop-blur-3xl border-b border-white/5 h-24 flex items-center">
-        <div className="max-w-[1500px] mx-auto px-10 w-full flex items-center justify-between">
-           <div className="flex items-center gap-16">
+        <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-10 w-full flex items-center justify-between">
+           <div className="flex items-center gap-6 sm:gap-10 lg:gap-16">
              <button onClick={() => { window.location.hash = ''; setView('home'); setMobileMenuOpen(false); }} className="group">
-                <span className="text-4xl font-black text-white tracking-tighter flex items-center gap-3">
-                      <img src={process.env.PUBLIC_URL + '/logo.png'} alt="Logo" className="h-14 w-auto object-contain transition-transform group-hover:scale-105" />
+                <span className="text-xl sm:text-2xl lg:text-4xl font-black text-white tracking-tighter flex items-center gap-2 sm:gap-3">
+                      <img src={process.env.PUBLIC_URL + '/logo.png'} alt="Logo" className="h-8 sm:h-10 lg:h-14 w-auto object-contain transition-transform group-hover:scale-105" />
                       <span className="group-hover:tracking-normal transition-all duration-500">
                         <span style={{ color: settings.primaryColor }}>{settings.siteName.slice(0, -3)}</span>{settings.siteName.slice(-3)}
                       </span>
@@ -858,7 +864,7 @@ export default function App() {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-[85] xl:hidden">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
-          <div className="absolute top-24 right-0 w-72 bg-slate-900/95 backdrop-blur-xl border-l border-white/10 h-[calc(100vh-6rem)] p-8 flex flex-col gap-4 animate-slide-in">
+          <div className="absolute top-24 right-0 w-[80vw] sm:w-72 bg-slate-900/95 backdrop-blur-xl border-l border-white/10 h-[calc(100vh-6rem)] p-5 sm:p-8 flex flex-col gap-3 sm:gap-4 animate-slide-in">
             {['home', 'collections', 'contact'].map(nav => (
               <button
                 key={nav}
@@ -894,13 +900,13 @@ export default function App() {
       <main className="animate-in fade-in duration-1000">
         {/* --- HOME VIEW --- */}
         {view === 'home' && (
-          <div className="pt-40 pb-32 px-10 max-w-[1600px] mx-auto">
+          <div className="pt-28 pb-16 px-4 sm:px-6 lg:px-10 sm:pt-32 lg:pt-40 lg:pb-32 max-w-[1600px] mx-auto">
             {/* Header Section */}
-            <div className="mb-20">
+            <div className="mb-10 sm:mb-14 lg:mb-20">
               <h1 className={`font-black text-white mb-6 tracking-tighter leading-none ${settings.heroSize === 'small' ? 'text-3xl sm:text-5xl lg:text-6xl' : settings.heroSize === 'medium' ? 'text-4xl sm:text-6xl lg:text-7xl' : 'text-5xl sm:text-7xl lg:text-8xl'}`}>
                 {activeCollection ? activeCollection.title : settings.texts.homeTitle}
               </h1>
-              <p className="text-slate-400 text-xl font-medium max-w-2xl leading-relaxed">
+              <p className="text-slate-400 text-base sm:text-lg lg:text-xl font-medium max-w-2xl leading-relaxed">
                 {activeCollection ? activeCollection.description : settings.texts.homeSubtitle}
               </p>
               {activeCollection && (
@@ -914,14 +920,14 @@ export default function App() {
             </div>
 
             {/* Search & Filters */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 lg:gap-8 mb-8 sm:mb-12 lg:mb-16">
               <div className="relative w-full max-w-2xl">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={24}/>
-                <input 
-                  value={searchQuery} 
-                  onChange={e => setSearchQuery(e.target.value)} 
-                  placeholder={settings.texts.searchPlaceholder} 
-                  className="w-full bg-white/5 border border-white/10 p-7 pl-16 rounded-[2.5rem] text-white focus:ring-2 outline-none transition-all text-xl backdrop-blur-xl focus:bg-white/10 shadow-2xl" 
+                <Search className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 text-slate-500" size={20}/>
+                <input
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder={settings.texts.searchPlaceholder}
+                  className="w-full bg-white/5 border border-white/10 p-4 pl-12 sm:p-5 sm:pl-14 lg:p-7 lg:pl-16 rounded-2xl sm:rounded-[2rem] lg:rounded-[2.5rem] text-white focus:ring-2 outline-none transition-all text-base sm:text-lg lg:text-xl backdrop-blur-xl focus:bg-white/10 shadow-2xl"
                   style={{ '--tw-ring-color': settings.primaryColor }}
                 />
               </div>
@@ -929,7 +935,7 @@ export default function App() {
             </div>
 
             {/* Sort Buttons */}
-            <div className="flex flex-wrap items-center gap-3 mb-12">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-6 sm:mb-8 lg:mb-12">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 mr-2">Сортирай:</span>
               {[
                 { id: 'newest', label: 'Най-нови', icon: <Clock size={13}/> },
@@ -950,9 +956,9 @@ export default function App() {
 
             {/* Trending Carousel with Arrows (Only on main page) */}
             {settings.showTrending !== false && !searchQuery && !activeCollection && filter === 'all' && trendingVideos.length > 0 && (
-              <div className="mb-32">
-                <div className="flex items-center gap-4 mb-10">
-                  <h2 className="text-3xl font-black text-white tracking-tighter uppercase flex items-center gap-3">
+              <div className="mb-16 sm:mb-20 lg:mb-32">
+                <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8 lg:mb-10">
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tighter uppercase flex items-center gap-2 sm:gap-3">
                     <TrendingUp style={{ color: settings.primaryColor }} /> В ТРЕНДА
                   </h2>
                   <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
@@ -986,29 +992,29 @@ export default function App() {
                 </div>
                 <div className="relative overflow-hidden">
                   <div
-                    className="flex gap-8 transition-transform duration-700 ease-out pb-4"
-                    style={{ transform: `translateX(-${trendingIndex * (Math.min(500, window.innerWidth - 80) + 32)}px)` }}
+                    className="flex gap-4 sm:gap-6 lg:gap-8 transition-transform duration-700 ease-out pb-4"
+                    style={{ transform: `translateX(-${trendingIndex * (window.innerWidth < 640 ? 296 : window.innerWidth < 768 ? 374 : 532)}px)` }}
                   >
                     {trendingVideos.map((v, idx) => (
-                      <div key={v.id} onClick={() => setVideoInfoModal(v)} className={`group relative flex-shrink-0 w-[350px] md:w-[500px] aspect-video rounded-[3rem] overflow-hidden cursor-pointer shadow-3xl ring-1 ring-white/10 transition-all duration-500 hover:ring-white/30 ${idx === trendingIndex ? 'scale-100 opacity-100' : 'scale-[0.95] opacity-60'}`}>
+                      <div key={v.id} onClick={() => setVideoInfoModal(v)} className={`group relative flex-shrink-0 w-[280px] sm:w-[350px] md:w-[500px] aspect-video rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[3rem] overflow-hidden cursor-pointer shadow-3xl ring-1 ring-white/10 transition-all duration-500 hover:ring-white/30 ${idx === trendingIndex ? 'scale-100 opacity-100' : 'scale-[0.95] opacity-60'}`}>
                          <img src={v.thumbnail} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={v.title} />
                          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-90" />
-                         <div className="absolute top-8 right-8 premium-blur bg-white/10 border border-white/20 px-5 py-2 rounded-2xl flex items-center gap-3 text-white font-black text-xs">
+                         <div className="absolute top-3 right-3 sm:top-5 sm:right-5 lg:top-8 lg:right-8 premium-blur bg-white/10 border border-white/20 px-3 py-1 sm:px-4 sm:py-1.5 lg:px-5 lg:py-2 rounded-xl sm:rounded-2xl flex items-center gap-1.5 sm:gap-2 lg:gap-3 text-white font-black text-[10px] sm:text-xs">
                             <Zap size={14} fill="currentColor" className="text-yellow-400" />
                             {(v.views || 0).toLocaleString()} <span className="text-[10px] opacity-60">ГЛЕДАНИЯ</span>
                          </div>
                          {/* Trending position badge */}
-                         <div className="absolute top-8 left-8">
-                           <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-white text-lg" style={{ backgroundColor: settings.primaryColor, boxShadow: `0 4px 15px ${settings.primaryColor}50` }}>
+                         <div className="absolute top-3 left-3 sm:top-5 sm:left-5 lg:top-8 lg:left-8">
+                           <div className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center font-black text-white text-sm sm:text-base lg:text-lg" style={{ backgroundColor: settings.primaryColor, boxShadow: `0 4px 15px ${settings.primaryColor}50` }}>
                              {idx + 1}
                            </div>
                          </div>
-                         <div className="absolute bottom-10 left-10 right-10">
-                            <div className="flex items-center gap-3 mb-3">
-                              <span className="bg-white/10 premium-blur text-white text-[10px] px-4 py-1.5 rounded-full font-black uppercase tracking-widest border border-white/10">{v.year}</span>
-                              <span className="text-white/60 text-[10px] font-black uppercase tracking-[0.3em]">Premium Experience</span>
+                         <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 lg:bottom-10 lg:left-10 lg:right-10">
+                            <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                              <span className="bg-white/10 premium-blur text-white text-[9px] sm:text-[10px] px-2.5 py-1 sm:px-4 sm:py-1.5 rounded-full font-black uppercase tracking-widest border border-white/10">{v.year}</span>
+                              <span className="text-white/60 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] hidden sm:inline">Premium Experience</span>
                             </div>
-                            <h3 className="text-3xl font-black text-white line-clamp-1 group-hover:translate-x-2 transition-transform">{v.title}</h3>
+                            <h3 className="text-lg sm:text-2xl lg:text-3xl font-black text-white line-clamp-1 group-hover:translate-x-2 transition-transform">{v.title}</h3>
                          </div>
                       </div>
                     ))}
@@ -1030,23 +1036,23 @@ export default function App() {
 
             {/* Recently Added Section (Only on main page) */}
             {settings.showRecentlyAdded !== false && !searchQuery && !activeCollection && filter === 'all' && recentlyAdded.length > 0 && (
-              <div className="mb-32">
-                <div className="flex items-center gap-4 mb-10">
-                  <h2 className="text-3xl font-black text-white tracking-tighter uppercase flex items-center gap-3">
+              <div className="mb-16 sm:mb-20 lg:mb-32">
+                <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8 lg:mb-10">
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tighter uppercase flex items-center gap-2 sm:gap-3">
                     <Sparkles style={{ color: settings.primaryColor }} /> НАСКОРО ДОБАВЕНИ
                   </h2>
                   <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
                 </div>
-                <div className="flex gap-8 overflow-x-auto pb-10 snap-x no-scrollbar">
+                <div className="flex gap-4 sm:gap-6 lg:gap-8 overflow-x-auto pb-6 sm:pb-8 lg:pb-10 snap-x no-scrollbar">
                   {recentlyAdded.map(v => (
-                    <div key={v.id} onClick={() => setVideoInfoModal(v)} className="group relative flex-shrink-0 w-[250px] md:w-[350px] aspect-[2/3] rounded-[2.5rem] overflow-hidden cursor-pointer snap-start shadow-3xl ring-1 ring-white/10 transition-all hover:ring-white/30 hover:scale-[1.03]">
+                    <div key={v.id} onClick={() => setVideoInfoModal(v)} className="group relative flex-shrink-0 w-[160px] sm:w-[220px] md:w-[350px] aspect-[2/3] rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] overflow-hidden cursor-pointer snap-start shadow-3xl ring-1 ring-white/10 transition-all hover:ring-white/30 hover:scale-[1.03]">
                        <img src={v.thumbnail} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={v.title} />
                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
                        <div className="absolute top-4 left-4">
                          <span className="bg-emerald-500 text-white text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest">НОВО</span>
                        </div>
-                       <div className="absolute bottom-8 left-6 right-6">
-                          <h3 className="text-xl font-black text-white line-clamp-2 group-hover:translate-x-1 transition-transform">{v.title}</h3>
+                       <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-5 sm:right-5 lg:bottom-8 lg:left-6 lg:right-6">
+                          <h3 className="text-sm sm:text-base lg:text-xl font-black text-white line-clamp-2 group-hover:translate-x-1 transition-transform">{v.title}</h3>
                           <span className="text-[10px] font-bold text-slate-400 mt-2 block">{v.year}</span>
                        </div>
                     </div>
@@ -1075,7 +1081,7 @@ export default function App() {
             )}
 
             {/* Main Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-10">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-5 lg:gap-10">
               {paginatedVideos.map(v => (
                 <VideoCard key={v.id} video={v} onClick={setVideoInfoModal} onLike={handleLike} isLiked={likedVideos.includes(v.id)} primaryColor={settings.primaryColor} cardStyle={settings.cardStyle} likeSoundEnabled={settings.likeSoundEnabled} />
               ))}
@@ -1145,10 +1151,10 @@ export default function App() {
             )}
 
             {filteredVideos.length === 0 && (
-              <div className="py-40 text-center">
-                <Search size={80} className="mx-auto text-slate-800 mb-8" />
-                <h3 className="text-3xl font-black text-white mb-2">Няма намерени резултати</h3>
-                <p className="text-slate-500 font-medium text-lg">Опитайте с друго заглавие или филтър.</p>
+              <div className="py-20 sm:py-32 lg:py-40 text-center">
+                <Search size={60} className="mx-auto text-slate-800 mb-6 sm:mb-8" />
+                <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-white mb-2">Няма намерени резултати</h3>
+                <p className="text-slate-500 font-medium text-base sm:text-lg">Опитайте с друго заглавие или филтър.</p>
               </div>
             )}
           </div>
@@ -1156,24 +1162,24 @@ export default function App() {
 
         {/* --- COLLECTIONS VIEW --- */}
         {view === 'collections' && (
-          <div className="pt-40 pb-32 px-10 max-w-[1600px] mx-auto min-h-screen">
-            <h1 className="text-6xl font-black text-white mb-10 flex items-center gap-8">
-              <Layers size={60} style={{ color: settings.primaryColor }}/> Колекции
+          <div className="pt-28 pb-16 px-4 sm:px-6 lg:px-10 sm:pt-32 lg:pt-40 lg:pb-32 max-w-[1600px] mx-auto min-h-screen">
+            <h1 className="text-3xl sm:text-4xl lg:text-6xl font-black text-white mb-6 sm:mb-8 lg:mb-10 flex items-center gap-4 sm:gap-6 lg:gap-8">
+              <Layers size={36} className="sm:w-12 sm:h-12 lg:w-[60px] lg:h-[60px]" style={{ color: settings.primaryColor }}/> Колекции
             </h1>
 
             {/* Collections Search */}
-            <div className="relative w-full max-w-2xl mb-16">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={24}/>
+            <div className="relative w-full max-w-2xl mb-8 sm:mb-12 lg:mb-16">
+              <Search className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 text-slate-500" size={20}/>
               <input
                 value={collectionSearch}
                 onChange={e => setCollectionSearch(e.target.value)}
                 placeholder="Търсене на колекции..."
-                className="w-full bg-white/5 border border-white/10 p-7 pl-16 rounded-[2.5rem] text-white focus:ring-2 outline-none transition-all text-xl backdrop-blur-xl focus:bg-white/10 shadow-2xl"
+                className="w-full bg-white/5 border border-white/10 p-4 pl-12 sm:p-5 sm:pl-14 lg:p-7 lg:pl-16 rounded-2xl sm:rounded-[2rem] lg:rounded-[2.5rem] text-white focus:ring-2 outline-none transition-all text-base sm:text-lg lg:text-xl backdrop-blur-xl focus:bg-white/10 shadow-2xl"
                 style={{ '--tw-ring-color': settings.primaryColor }}
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 lg:gap-12">
               {collections
                 .filter(col => col.title.toLowerCase().includes(collectionSearch.toLowerCase()) || col.description.toLowerCase().includes(collectionSearch.toLowerCase()))
                 .map(col => {
@@ -1182,7 +1188,7 @@ export default function App() {
                    <div
                     key={col.id}
                     onClick={() => { setActiveCollection(col); setView('home'); window.scrollTo(0,0); }}
-                    className="group relative bg-slate-900 aspect-[16/9] rounded-[4rem] overflow-hidden cursor-pointer shadow-3xl ring-1 ring-white/10 hover:ring-white/40 transition-all"
+                    className="group relative bg-slate-900 aspect-[16/9] rounded-[1.5rem] sm:rounded-[2.5rem] lg:rounded-[4rem] overflow-hidden cursor-pointer shadow-3xl ring-1 ring-white/10 hover:ring-white/40 transition-all"
                   >
                       {/* Thumbnail Grid Background */}
                       {colVideos.length > 0 && (
@@ -1198,10 +1204,10 @@ export default function App() {
                         </div>
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-950/30 z-10"/>
-                      <div className="absolute bottom-10 left-10 right-10 z-20">
-                        <div className="w-12 h-1.5 rounded-full mb-5 opacity-60" style={{ backgroundColor: settings.primaryColor }} />
-                        <h3 className="text-3xl font-black text-white mb-3 group-hover:translate-x-3 transition-transform">{col.title}</h3>
-                        <p className="text-slate-400 text-sm font-medium line-clamp-2 max-w-md">{col.description}</p>
+                      <div className="absolute bottom-5 left-5 right-5 sm:bottom-7 sm:left-7 sm:right-7 lg:bottom-10 lg:left-10 lg:right-10 z-20">
+                        <div className="w-8 sm:w-10 lg:w-12 h-1 sm:h-1.5 rounded-full mb-3 sm:mb-4 lg:mb-5 opacity-60" style={{ backgroundColor: settings.primaryColor }} />
+                        <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-white mb-2 sm:mb-3 group-hover:translate-x-3 transition-transform">{col.title}</h3>
+                        <p className="text-slate-400 text-xs sm:text-sm font-medium line-clamp-2 max-w-md">{col.description}</p>
                         <div className="mt-6 flex items-center gap-4 text-xs font-black uppercase tracking-widest text-slate-500">
                           <span className="flex items-center gap-2"><Film size={14}/> {col.videoIds.length} Заглавия</span>
                           {/* Thumbnail avatars */}
@@ -1229,7 +1235,7 @@ export default function App() {
                   <p className="text-slate-500 font-medium">Опитайте с друго име на колекция.</p>
                 </div>
               )}
-              <div className="border-4 border-dashed border-white/5 rounded-[4rem] flex flex-col items-center justify-center p-12 text-center group hover:border-white/10 transition-all aspect-[16/9]">
+              <div className="border-4 border-dashed border-white/5 rounded-[1.5rem] sm:rounded-[2.5rem] lg:rounded-[4rem] flex flex-col items-center justify-center p-6 sm:p-8 lg:p-12 text-center group hover:border-white/10 transition-all aspect-[16/9]">
                 <HelpCircle size={48} className="text-slate-800 mb-6" />
                 <h4 className="text-slate-500 font-black uppercase tracking-widest text-sm">Очаквайте още колекции скоро</h4>
               </div>
@@ -1239,10 +1245,10 @@ export default function App() {
 
         {/* --- CONTACT VIEW --- */}
         {view === 'contact' && (
-          <div className="pt-40 pb-32 px-10 max-w-4xl mx-auto min-h-screen">
-             <div className="text-center mb-20">
-               <h1 className="text-7xl font-black text-white mb-6 tracking-tighter">Свържи се с нас</h1>
-               <p className="text-slate-500 text-xl font-medium">Имаш предложение, бъг или проблем? Ние сме тук да помогнем.</p>
+          <div className="pt-28 pb-16 px-4 sm:px-6 lg:px-10 sm:pt-32 lg:pt-40 lg:pb-32 max-w-4xl mx-auto min-h-screen">
+             <div className="text-center mb-10 sm:mb-14 lg:mb-20">
+               <h1 className="text-3xl sm:text-5xl lg:text-7xl font-black text-white mb-4 sm:mb-6 tracking-tighter">Свържи се с нас</h1>
+               <p className="text-slate-500 text-base sm:text-lg lg:text-xl font-medium">Имаш предложение, бъг или проблем? Ние сме тук да помогнем.</p>
              </div>
              <form
               onSubmit={(e) => {
@@ -1266,20 +1272,20 @@ export default function App() {
                 showToast("Съобщението е изпратено!", "success");
                 e.target.reset();
               }}
-              className="bg-white/5 premium-blur p-16 rounded-[4rem] border border-white/10 space-y-8 shadow-3xl"
+              className="bg-white/5 premium-blur p-5 sm:p-8 lg:p-16 rounded-[1.5rem] sm:rounded-[2.5rem] lg:rounded-[4rem] border border-white/10 space-y-6 sm:space-y-8 shadow-3xl"
             >
-                <div className="grid md:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-4">Твоето Име</label>
-                    <input required name="name" placeholder="Йоан Доу" className="w-full bg-black/40 border border-white/10 p-6 rounded-3xl text-white outline-none focus:ring-2 transition-all" style={{'--tw-ring-color': settings.primaryColor}}/>
+                <div className="grid md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
+                  <div className="space-y-2 sm:space-y-3">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-3 sm:ml-4">Твоето Име</label>
+                    <input required name="name" placeholder="Йоан Доу" className="w-full bg-black/40 border border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none focus:ring-2 transition-all" style={{'--tw-ring-color': settings.primaryColor}}/>
                   </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-4">Имейл Адрес</label>
-                    <input required name="email" type="email" placeholder="email@example.com" className="w-full bg-black/40 border border-white/10 p-6 rounded-3xl text-white outline-none focus:ring-2 transition-all" style={{'--tw-ring-color': settings.primaryColor}}/>
+                  <div className="space-y-2 sm:space-y-3">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-3 sm:ml-4">Имейл Адрес</label>
+                    <input required name="email" type="email" placeholder="email@example.com" className="w-full bg-black/40 border border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none focus:ring-2 transition-all" style={{'--tw-ring-color': settings.primaryColor}}/>
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-4">Категория</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-3 sm:ml-4">Категория</label>
                   <div className="flex flex-wrap gap-3">
                     {[
                       { value: 'suggestion', label: 'Предложение', icon: <MessageSquare size={14}/> },
@@ -1288,7 +1294,7 @@ export default function App() {
                     ].map(cat => (
                       <label key={cat.value} className="relative cursor-pointer">
                         <input type="radio" name="category" value={cat.value} defaultChecked={cat.value === 'suggestion'} className="peer sr-only" />
-                        <div className="flex items-center gap-2 px-6 py-4 rounded-2xl border border-white/10 bg-black/40 text-slate-400 text-sm font-bold transition-all peer-checked:text-white peer-checked:border-transparent peer-checked:shadow-lg hover:bg-white/5"
+                        <div className="flex items-center gap-2 px-4 py-3 sm:px-6 sm:py-4 rounded-xl sm:rounded-2xl border border-white/10 bg-black/40 text-slate-400 text-xs sm:text-sm font-bold transition-all peer-checked:text-white peer-checked:border-transparent peer-checked:shadow-lg hover:bg-white/5"
                           style={{ '--peer-checked-bg': settings.primaryColor }}
                         >
                           <span className="peer-checked:hidden">{cat.icon}</span>
@@ -1307,10 +1313,10 @@ export default function App() {
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-4">Твоето Съобщение</label>
-                  <textarea required name="message" placeholder="Опиши подробно какво би искал да ни кажеш..." rows={6} className="w-full bg-black/40 border border-white/10 p-6 rounded-3xl text-white outline-none resize-none focus:ring-2 transition-all" style={{'--tw-ring-color': settings.primaryColor}}/>
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-3 sm:ml-4">Твоето Съобщение</label>
+                  <textarea required name="message" placeholder="Опиши подробно какво би искал да ни кажеш..." rows={6} className="w-full bg-black/40 border border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none resize-none focus:ring-2 transition-all" style={{'--tw-ring-color': settings.primaryColor}}/>
                 </div>
-                <button type="submit" className="w-full py-7 bg-white text-black font-black uppercase tracking-[0.3em] rounded-3xl hover:scale-[1.02] active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-4">
+                <button type="submit" className="w-full py-5 sm:py-6 lg:py-7 bg-white text-black font-black uppercase tracking-[0.15em] sm:tracking-[0.3em] text-sm sm:text-base rounded-2xl sm:rounded-3xl hover:scale-[1.02] active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-3 sm:gap-4">
                   ИЗПРАТИ СЪОБЩЕНИЕТО <Send size={20}/>
                 </button>
              </form>
@@ -1319,13 +1325,13 @@ export default function App() {
 
         {/* --- LOGIN VIEW --- */}
         {view === 'login' && (
-           <div className="pt-48 flex justify-center px-10">
-              <div className="bg-white/5 premium-blur p-16 rounded-[4rem] border border-white/10 w-full max-w-xl shadow-3xl text-center">
+           <div className="pt-32 sm:pt-40 lg:pt-48 flex justify-center px-4 sm:px-6 lg:px-10">
+              <div className="bg-white/5 premium-blur p-6 sm:p-10 lg:p-16 rounded-[1.5rem] sm:rounded-[2.5rem] lg:rounded-[4rem] border border-white/10 w-full max-w-xl shadow-3xl text-center">
                  <div className="w-24 h-24 bg-white/5 rounded-[2rem] flex items-center justify-center mx-auto mb-10 border border-white/10">
                     <Shield size={48} style={{ color: settings.primaryColor }} />
                  </div>
-                 <h2 className="text-4xl font-black text-white mb-4 tracking-[0.1em] uppercase">{settings.texts.loginTitle}</h2>
-                 <p className="text-slate-500 mb-12 font-medium">Само за оторизиран персонал.</p>
+                 <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-3 sm:mb-4 tracking-[0.05em] sm:tracking-[0.1em] uppercase">{settings.texts.loginTitle}</h2>
+                 <p className="text-slate-500 mb-8 sm:mb-10 lg:mb-12 font-medium text-sm sm:text-base">Само за оторизиран персонал.</p>
                  <form onSubmit={(e)=>{ 
                    e.preventDefault(); 
                    const savedPass = localStorage.getItem('v14_adminPass') || 'admin123';
@@ -1339,9 +1345,9 @@ export default function App() {
                      showToast("Невалидни данни!", "error");
                    }
                  }} className="space-y-6">
-                    <input type="email" required placeholder={settings.texts.loginEmailPlaceholder} className="w-full bg-black/40 border border-white/10 p-6 rounded-3xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}} value={loginForm.email} onChange={e=>setLoginForm({...loginForm, email: e.target.value})}/>
-                    <input type="password" required placeholder={settings.texts.loginPasswordPlaceholder} className="w-full bg-black/40 border border-white/10 p-6 rounded-3xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}} value={loginForm.password} onChange={e=>setLoginForm({...loginForm, password: e.target.value})}/>
-                    <button className="w-full py-7 text-black bg-white font-black uppercase tracking-[0.2em] rounded-3xl hover:scale-105 transition-all shadow-2xl mt-4">
+                    <input type="email" required placeholder={settings.texts.loginEmailPlaceholder} className="w-full bg-black/40 border border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}} value={loginForm.email} onChange={e=>setLoginForm({...loginForm, email: e.target.value})}/>
+                    <input type="password" required placeholder={settings.texts.loginPasswordPlaceholder} className="w-full bg-black/40 border border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}} value={loginForm.password} onChange={e=>setLoginForm({...loginForm, password: e.target.value})}/>
+                    <button className="w-full py-5 sm:py-6 lg:py-7 text-black bg-white font-black uppercase tracking-[0.1em] sm:tracking-[0.2em] text-sm sm:text-base rounded-2xl sm:rounded-3xl hover:scale-105 transition-all shadow-2xl mt-4">
                       {settings.texts.loginButton}
                     </button>
                  </form>
@@ -1351,10 +1357,10 @@ export default function App() {
 
         {/* --- ADMIN VIEW --- */}
         {view === 'admin' && currentUser && (
-          <div className="pt-40 px-10 max-w-[1700px] mx-auto flex flex-col xl:flex-row gap-16">
+          <div className="pt-28 px-4 sm:px-6 lg:px-10 sm:pt-32 lg:pt-40 max-w-[1700px] mx-auto flex flex-col xl:flex-row gap-6 sm:gap-8 lg:gap-16">
             {/* Sidebar Navigation */}
-            <div className="xl:w-80 shrink-0 flex flex-col gap-3">
-               <div className="bg-slate-900/50 p-6 rounded-[2.5rem] border border-white/5 mb-6">
+            <div className="xl:w-80 shrink-0 flex flex-col gap-2 sm:gap-3">
+               <div className="bg-slate-900/50 p-4 sm:p-5 lg:p-6 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] border border-white/5 mb-4 sm:mb-6">
                   <div className="flex items-center gap-4 mb-4">
                     <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white font-bold">A</div>
                     <div>
@@ -1380,7 +1386,7 @@ export default function App() {
                   <button
                     key={tab.id}
                     onClick={() => setAdminTab(tab.id)}
-                    className={`w-full text-left p-6 rounded-[2rem] font-black uppercase tracking-widest text-[11px] flex items-center gap-4 transition-all relative
+                    className={`w-full text-left p-4 sm:p-5 lg:p-6 rounded-[1.5rem] sm:rounded-[1.75rem] lg:rounded-[2rem] font-black uppercase tracking-widest text-[11px] flex items-center gap-3 sm:gap-4 transition-all relative
                       ${adminTab === tab.id ? 'text-white shadow-xl' : 'text-slate-500 hover:bg-white/5'}`}
                     style={adminTab === tab.id ? { backgroundColor: settings.primaryColor, boxShadow: `0 10px 30px ${settings.primaryColor}30` } : {}}
                   >
@@ -1395,51 +1401,51 @@ export default function App() {
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 pb-32">
+            <div className="flex-1 pb-16 sm:pb-20 lg:pb-32">
                {adminTab === 'dashboard' && (
                   <div className="space-y-12">
                      {/* Stats Grid */}
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 lg:gap-8">
                         {[
                           { label: 'Общо Видеа', val: videos.length, icon: <Film className="text-blue-500"/> },
                           { label: 'Общо Гледания', val: videos.reduce((a,b)=>a+(b.views||0), 0), icon: <Eye className="text-emerald-500"/> },
                           { label: 'Запитвания', val: inquiries.length, icon: <Mail className="text-yellow-500"/> },
                           { label: 'Лайкове', val: videos.reduce((a,b)=>a+(b.likes||0), 0), icon: <ThumbsUp className="text-rose-500"/> }
                         ].map((s, i) => (
-                          <div key={i} className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/5 shadow-2xl">
+                          <div key={i} className="bg-slate-900 p-4 sm:p-6 lg:p-8 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] border border-white/5 shadow-2xl">
                              <div className="flex justify-between items-start mb-4">
                                <div className="p-3 bg-white/5 rounded-2xl">{s.icon}</div>
                                <BarChart3 size={16} className="text-slate-700"/>
                              </div>
-                             <h4 className="text-4xl font-black text-white mb-1">{s.val.toLocaleString()}</h4>
+                             <h4 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-1">{s.val.toLocaleString()}</h4>
                              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{s.label}</p>
                           </div>
                         ))}
                      </div>
 
                      {/* Quick Actions */}
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                         <button onClick={() => { setAdminTab('catalog'); setEditingVideoId(null); window.scrollTo(0,0); }}
-                          className="p-6 bg-slate-900 rounded-[2rem] border border-white/5 hover:border-white/20 transition-all flex items-center gap-4 group">
+                          className="p-4 sm:p-5 lg:p-6 bg-slate-900 rounded-[1.5rem] sm:rounded-[1.75rem] lg:rounded-[2rem] border border-white/5 hover:border-white/20 transition-all flex items-center gap-3 sm:gap-4 group">
                           <div className="p-3 rounded-2xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors"><Plus size={20} className="text-emerald-500"/></div>
                           <div className="text-left"><p className="text-white font-black text-sm">Добави Видео</p><p className="text-slate-600 text-[10px] font-bold uppercase">Към каталога</p></div>
                         </button>
                         <button onClick={() => setAdminTab('inquiries')}
-                          className="p-6 bg-slate-900 rounded-[2rem] border border-white/5 hover:border-white/20 transition-all flex items-center gap-4 group">
+                          className="p-4 sm:p-5 lg:p-6 bg-slate-900 rounded-[1.5rem] sm:rounded-[1.75rem] lg:rounded-[2rem] border border-white/5 hover:border-white/20 transition-all flex items-center gap-3 sm:gap-4 group">
                           <div className="p-3 rounded-2xl bg-yellow-500/10 group-hover:bg-yellow-500/20 transition-colors"><MessageSquare size={20} className="text-yellow-500"/></div>
                           <div className="text-left"><p className="text-white font-black text-sm">Запитвания</p><p className="text-slate-600 text-[10px] font-bold uppercase">{inquiries.filter(i => !i.status || i.status === 'unread').length} непрочетени</p></div>
                         </button>
                         <button onClick={() => setAdminTab('collections')}
-                          className="p-6 bg-slate-900 rounded-[2rem] border border-white/5 hover:border-white/20 transition-all flex items-center gap-4 group">
+                          className="p-4 sm:p-5 lg:p-6 bg-slate-900 rounded-[1.5rem] sm:rounded-[1.75rem] lg:rounded-[2rem] border border-white/5 hover:border-white/20 transition-all flex items-center gap-3 sm:gap-4 group">
                           <div className="p-3 rounded-2xl bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors"><Layers size={20} className="text-blue-500"/></div>
                           <div className="text-left"><p className="text-white font-black text-sm">Колекции</p><p className="text-slate-600 text-[10px] font-bold uppercase">{collections.length} създадени</p></div>
                         </button>
                      </div>
 
                      {/* Top 5 Stats */}
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/5 shadow-2xl">
-                          <h3 className="text-lg font-black text-white mb-6 flex items-center gap-3"><Eye size={18} className="text-emerald-500"/> Топ 5 Най-гледани</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
+                        <div className="bg-slate-900 p-5 sm:p-6 lg:p-8 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] border border-white/5 shadow-2xl">
+                          <h3 className="text-base sm:text-lg font-black text-white mb-4 sm:mb-6 flex items-center gap-3"><Eye size={18} className="text-emerald-500"/> Топ 5 Най-гледани</h3>
                           <div className="space-y-3">
                             {[...videos].sort((a,b) => (b.views||0) - (a.views||0)).slice(0, 5).map((v, i) => (
                               <div key={v.id} className="flex items-center gap-4 p-3 bg-black/30 rounded-xl">
@@ -1451,8 +1457,8 @@ export default function App() {
                             ))}
                           </div>
                         </div>
-                        <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/5 shadow-2xl">
-                          <h3 className="text-lg font-black text-white mb-6 flex items-center gap-3"><Heart size={18} className="text-rose-500"/> Топ 5 Най-харесвани</h3>
+                        <div className="bg-slate-900 p-5 sm:p-6 lg:p-8 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] border border-white/5 shadow-2xl">
+                          <h3 className="text-base sm:text-lg font-black text-white mb-4 sm:mb-6 flex items-center gap-3"><Heart size={18} className="text-rose-500"/> Топ 5 Най-харесвани</h3>
                           <div className="space-y-3">
                             {[...videos].sort((a,b) => (b.likes||0) - (a.likes||0)).slice(0, 5).map((v, i) => (
                               <div key={v.id} className="flex items-center gap-4 p-3 bg-black/30 rounded-xl">
@@ -1466,8 +1472,8 @@ export default function App() {
                         </div>
                      </div>
 
-                     <div className="bg-slate-900 p-10 rounded-[3rem] border border-white/5 shadow-3xl">
-                        <h2 className="text-3xl font-black text-white mb-10 flex items-center gap-4">
+                     <div className="bg-slate-900 p-5 sm:p-7 lg:p-10 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[3rem] border border-white/5 shadow-3xl">
+                        <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-white mb-6 sm:mb-8 lg:mb-10 flex items-center gap-3 sm:gap-4">
                           <Activity style={{ color: settings.primaryColor }} /> Последна Активност
                         </h2>
                         <div className="space-y-4">
@@ -1495,8 +1501,8 @@ export default function App() {
 
                {adminTab === 'catalog' && (
                   <div className="space-y-12">
-                     <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-white/5 shadow-3xl">
-                        <h2 className="text-3xl font-black text-white mb-10">{editingVideoId ? "Редактиране на Видео" : "Добавяне на Ново Видео"}</h2>
+                     <div className="bg-slate-900 p-4 sm:p-7 lg:p-12 rounded-[1.5rem] sm:rounded-[2.5rem] lg:rounded-[3.5rem] border border-white/5 shadow-3xl">
+                        <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-white mb-6 sm:mb-8 lg:mb-10">{editingVideoId ? "Редактиране на Видео" : "Добавяне на Ново Видео"}</h2>
                         <form onSubmit={e => {
                            e.preventDefault(); const d = new FormData(e.target);
                            const vData = {
@@ -1514,56 +1520,56 @@ export default function App() {
                            if (editingVideoId) handleVideoAction(editingVideoId, 'edit', vData); 
                            else handleVideoAction(null, 'add', vData);
                            e.target.reset();
-                        }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
                            <div className="lg:col-span-2 space-y-2">
-                             <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Заглавие</label>
-                             <input name="title" required defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.title : ""} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                             <label className="text-[10px] font-black uppercase text-slate-500 ml-3 sm:ml-4">Заглавие</label>
+                             <input name="title" required defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.title : ""} className="w-full bg-black/40 border border-white/5 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
                            </div>
                            <div className="space-y-2">
                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Година</label>
-                             <input name="year" required defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.year : ""} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none"/>
+                             <input name="year" required defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.year : ""} className="w-full bg-black/40 border border-white/5 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none"/>
                            </div>
                            <div className="lg:col-span-2 space-y-2">
                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Thumbnail URL</label>
-                             <input name="thumb" required defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.thumbnail : ""} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none"/>
+                             <input name="thumb" required defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.thumbnail : ""} className="w-full bg-black/40 border border-white/5 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none"/>
                            </div>
                            <div className="space-y-2">
                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Категория</label>
-                             <select name="category" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.type : "movie"} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none">
+                             <select name="category" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.type : "movie"} className="w-full bg-black/40 border border-white/5 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none">
                                 <option value="movie">Филм</option><option value="series">Сериал</option><option value="short">Кратка Анимация</option>
                              </select>
                            </div>
                            <div className="space-y-2">
                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Тип Стрийм</label>
-                             <select name="type" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.streamType : "embed"} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none">
+                             <select name="type" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.streamType : "embed"} className="w-full bg-black/40 border border-white/5 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none">
                                 <option value="embed">Стрийминг (Embed)</option><option value="download">Изтегляне (Link)</option>
                              </select>
                            </div>
                            <div className="space-y-2">
                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Embed URL</label>
-                             <input name="embed" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.embedUrl : ""} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none"/>
+                             <input name="embed" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.embedUrl : ""} className="w-full bg-black/40 border border-white/5 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none"/>
                            </div>
                            <div className="space-y-2">
                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Времетраене</label>
-                             <input name="duration" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.duration : ""} placeholder="напр. 95 min" className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none"/>
+                             <input name="duration" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.duration : ""} placeholder="напр. 95 min" className="w-full bg-black/40 border border-white/5 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none"/>
                            </div>
                            <div className="space-y-2">
                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Аудио Тип</label>
-                             <select name="audioType" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.audioType : "bg_audio"} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none">
+                             <select name="audioType" defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.audioType : "bg_audio"} className="w-full bg-black/40 border border-white/5 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none">
                                 <option value="bg_audio">БГ Аудио</option>
                                 <option value="subtitles">Субтитри</option>
                              </select>
                            </div>
                            <div className="lg:col-span-3 space-y-2">
                              <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Описание</label>
-                             <textarea name="desc" rows={4} defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.description : ""} className="w-full bg-black/40 border border-white/5 p-6 rounded-3xl text-white outline-none resize-none"/>
+                             <textarea name="desc" rows={4} defaultValue={editingVideoId ? videos.find(v=>v.id===editingVideoId)?.description : ""} className="w-full bg-black/40 border border-white/5 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none resize-none"/>
                            </div>
-                           <div className="lg:col-span-3 pt-6 flex gap-4">
-                             <button type="submit" className="flex-1 py-7 text-white font-black rounded-3xl uppercase tracking-[0.3em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all" style={{ backgroundColor: settings.primaryColor }}>
+                           <div className="lg:col-span-3 pt-4 sm:pt-6 flex flex-col sm:flex-row gap-3 sm:gap-4">
+                             <button type="submit" className="flex-1 py-5 sm:py-6 lg:py-7 text-white font-black rounded-2xl sm:rounded-3xl uppercase tracking-[0.15em] sm:tracking-[0.3em] text-sm sm:text-base shadow-2xl hover:scale-[1.02] active:scale-95 transition-all" style={{ backgroundColor: settings.primaryColor }}>
                                 {editingVideoId ? "ЗАПАЗИ ПРОМЕНИТЕ" : "ДОБАВИ В КАТАЛОГА"}
                              </button>
                              {editingVideoId && (
-                               <button type="button" onClick={() => setEditingVideoId(null)} className="px-10 py-7 bg-white/5 text-white font-black rounded-3xl uppercase tracking-widest hover:bg-white/10 transition-all">ОТКАЗ</button>
+                               <button type="button" onClick={() => setEditingVideoId(null)} className="px-6 sm:px-10 py-5 sm:py-6 lg:py-7 bg-white/5 text-white font-black rounded-2xl sm:rounded-3xl uppercase tracking-widest text-sm sm:text-base hover:bg-white/10 transition-all">ОТКАЗ</button>
                              )}
                            </div>
                         </form>
@@ -1597,8 +1603,8 @@ export default function App() {
                           </div>
                         </div>
                         {videos.filter(v => v.title.toLowerCase().includes(adminCatalogSearch.toLowerCase())).map(v => (
-                           <div key={v.id} className={`flex items-center justify-between p-6 rounded-[2rem] border transition-all hover:bg-slate-800/50 group ${selectedVideos.includes(v.id) ? 'bg-slate-800/70 border-white/20' : 'bg-slate-900/50 border-white/5'}`}>
-                              <div className="flex items-center gap-6">
+                           <div key={v.id} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 lg:p-6 rounded-[1.5rem] sm:rounded-[1.75rem] lg:rounded-[2rem] border transition-all hover:bg-slate-800/50 group gap-4 ${selectedVideos.includes(v.id) ? 'bg-slate-800/70 border-white/20' : 'bg-slate-900/50 border-white/5'}`}>
+                              <div className="flex items-center gap-3 sm:gap-4 lg:gap-6 min-w-0">
                                 <button onClick={(e) => { e.stopPropagation(); setSelectedVideos(prev => prev.includes(v.id) ? prev.filter(x => x !== v.id) : [...prev, v.id]); }}
                                   className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all ${selectedVideos.includes(v.id) ? 'border-white/40 bg-white/20' : 'border-white/10 hover:border-white/30'}`}>
                                   {selectedVideos.includes(v.id) && <Check size={14} className="text-white"/>}
@@ -1607,9 +1613,9 @@ export default function App() {
                                   <img src={v.thumbnail} className="w-full h-full object-cover" alt=""/>
                                   <div className="absolute inset-0 bg-black/20" />
                                 </div>
-                                <div>
-                                  <h4 className="text-white font-black text-lg group-hover:text-red-500 transition-colors">{v.title}</h4>
-                                  <div className="flex items-center gap-4 text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                                <div className="min-w-0">
+                                  <h4 className="text-white font-black text-sm sm:text-base lg:text-lg group-hover:text-red-500 transition-colors truncate">{v.title}</h4>
+                                  <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1 flex-wrap">
                                     <span className="flex items-center gap-1"><Calendar size={12}/> {v.year}</span>
                                     <span className="flex items-center gap-1"><Eye size={12}/> {v.views}</span>
                                     <span className={`px-2 py-0.5 rounded-md ${v.streamType === 'download' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>{v.streamType}</span>
@@ -1617,12 +1623,12 @@ export default function App() {
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3">
-                                 <button onClick={() => { setEditingVideoId(v.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="w-14 h-14 flex items-center justify-center bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 rounded-2xl transition-all shadow-lg">
-                                   <Edit size={22}/>
+                              <div className="flex items-center gap-2 sm:gap-3 self-end sm:self-auto">
+                                 <button onClick={() => { setEditingVideoId(v.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 flex items-center justify-center bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl sm:rounded-2xl transition-all shadow-lg">
+                                   <Edit size={18}/>
                                  </button>
-                                 <button onClick={() => setDeleteConfirm({ open: true, id: v.id, type: 'video' })} className="w-14 h-14 flex items-center justify-center bg-white/5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-2xl transition-all shadow-lg">
-                                   <Trash2 size={22}/>
+                                 <button onClick={() => setDeleteConfirm({ open: true, id: v.id, type: 'video' })} className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 flex items-center justify-center bg-white/5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl sm:rounded-2xl transition-all shadow-lg">
+                                   <Trash2 size={18}/>
                                  </button>
                               </div>
                            </div>
@@ -1632,13 +1638,13 @@ export default function App() {
                )}
 
                {adminTab === 'settings' && (
-                  <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-white/5 shadow-3xl space-y-16 text-white">
-                     <section className="space-y-10">
-                       <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
+                  <div className="bg-slate-900 p-4 sm:p-7 lg:p-12 rounded-[1.5rem] sm:rounded-[2.5rem] lg:rounded-[3.5rem] border border-white/5 shadow-3xl space-y-10 sm:space-y-12 lg:space-y-16 text-white">
+                     <section className="space-y-6 sm:space-y-8 lg:space-y-10">
+                       <h2 className="text-xl sm:text-2xl lg:text-3xl font-black mb-6 sm:mb-8 lg:mb-10 flex items-center gap-3 sm:gap-4">
                          <Database style={{ color: settings.primaryColor }}/> Cloud Sync & Backup
                        </h2>
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          <button 
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
+                          <button
                             onClick={() => { 
                               const blob = new Blob([JSON.stringify({ version: SCHEMA_VERSION, videos, collections, inquiries, settings, exportDate: new Date() }, null, 2)], { type: 'application/json' }); 
                               const link = document.createElement('a'); 
@@ -1647,7 +1653,7 @@ export default function App() {
                               link.click(); 
                               showToast("Архивът е готов!", "success");
                             }} 
-                            className="flex flex-col items-center gap-6 p-12 rounded-[3rem] bg-emerald-600 hover:bg-emerald-700 transition-all shadow-2xl group"
+                            className="flex flex-col items-center gap-4 sm:gap-6 p-6 sm:p-8 lg:p-12 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[3rem] bg-emerald-600 hover:bg-emerald-700 transition-all shadow-2xl group"
                           >
                             <div className="p-5 bg-white/20 rounded-full group-hover:scale-110 transition-transform"><FileDown size={40}/></div>
                             <div className="text-center">
@@ -1656,7 +1662,7 @@ export default function App() {
                             </div>
                           </button>
                           
-                          <label className="flex flex-col items-center gap-6 p-12 rounded-[3rem] bg-blue-600 hover:bg-blue-700 transition-all shadow-2xl group cursor-pointer">
+                          <label className="flex flex-col items-center gap-4 sm:gap-6 p-6 sm:p-8 lg:p-12 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[3rem] bg-blue-600 hover:bg-blue-700 transition-all shadow-2xl group cursor-pointer">
                              <input type="file" accept=".json" className="hidden" onChange={(e) => { 
                                const file = e.target.files[0]; 
                                if(!file) return; 
@@ -1690,18 +1696,18 @@ export default function App() {
                        </div>
                      </section>
 
-                     <section className="space-y-10 border-t border-white/5 pt-16">
-                        <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
+                     <section className="space-y-6 sm:space-y-8 lg:space-y-10 border-t border-white/5 pt-8 sm:pt-12 lg:pt-16">
+                        <h2 className="text-xl sm:text-2xl lg:text-3xl font-black mb-6 sm:mb-8 lg:mb-10 flex items-center gap-3 sm:gap-4">
                           <Globe style={{ color: settings.primaryColor }}/> Име и Лого на Сайта
                         </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-10">
                            <div className="space-y-4">
                               <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Име на Платформата</label>
-                              <input value={settings.siteName} onChange={e => setSettings({...settings, siteName: e.target.value})} className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                              <input value={settings.siteName} onChange={e => setSettings({...settings, siteName: e.target.value})} className="w-full bg-black/40 border border-white/10 p-4 sm:p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
                            </div>
                            <div className="space-y-4">
                               <label className="text-[10px] font-black uppercase text-slate-500 ml-4">URL на Логото</label>
-                              <input value={settings.logoUrl} onChange={e => setSettings({...settings, logoUrl: e.target.value})} placeholder="https://example.com/logo.png" className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                              <input value={settings.logoUrl} onChange={e => setSettings({...settings, logoUrl: e.target.value})} placeholder="https://example.com/logo.png" className="w-full bg-black/40 border border-white/10 p-4 sm:p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
                            </div>
                            <div className="space-y-4">
                               <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Използвай Лого</label>
@@ -1720,11 +1726,11 @@ export default function App() {
                         </div>
                      </section>
 
-                     <section className="space-y-10 border-t border-white/5 pt-16">
-                        <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
+                     <section className="space-y-6 sm:space-y-8 lg:space-y-10 border-t border-white/5 pt-8 sm:pt-12 lg:pt-16">
+                        <h2 className="text-xl sm:text-2xl lg:text-3xl font-black mb-6 sm:mb-8 lg:mb-10 flex items-center gap-3 sm:gap-4">
                           <Palette style={{ color: settings.primaryColor }}/> Визуален Дизайн
                         </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-10">
                            <div className="space-y-4">
                               <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Основен Цвят на Платформата</label>
                               <div className="flex gap-4">
@@ -1734,7 +1740,7 @@ export default function App() {
                            </div>
                            <div className="space-y-4">
                               <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Визуален Ефект (Particles)</label>
-                              <select value={settings.visualEffect} onChange={e => setSettings({...settings, visualEffect: e.target.value})} className="w-full bg-black/40 border border-white/10 p-5 rounded-3xl text-white outline-none">
+                              <select value={settings.visualEffect} onChange={e => setSettings({...settings, visualEffect: e.target.value})} className="w-full bg-black/40 border border-white/10 p-4 sm:p-5 rounded-2xl sm:rounded-3xl text-white outline-none">
                                 <option value="none">Без ефект</option>
                                 <option value="snow">Сняг (Зима)</option>
                                 <option value="rain">Дъжд (Есен)</option>
@@ -1745,11 +1751,11 @@ export default function App() {
                         </div>
                      </section>
 
-                     <section className="space-y-10 border-t border-white/5 pt-16">
-                        <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
+                     <section className="space-y-6 sm:space-y-8 lg:space-y-10 border-t border-white/5 pt-8 sm:pt-12 lg:pt-16">
+                        <h2 className="text-xl sm:text-2xl lg:text-3xl font-black mb-6 sm:mb-8 lg:mb-10 flex items-center gap-3 sm:gap-4">
                           <Stamp style={{ color: settings.primaryColor }}/> Воден Знак (Watermark)
                         </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-10">
                            <div className="space-y-4">
                               <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Воден Знак Активен</label>
                               <button onClick={() => setSettings({...settings, watermarkEnabled: !settings.watermarkEnabled})} className={`px-6 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${settings.watermarkEnabled ? 'bg-emerald-500 text-white' : 'bg-white/5 text-slate-500 hover:bg-white/10'}`}>
@@ -1758,11 +1764,11 @@ export default function App() {
                            </div>
                            <div className="space-y-4">
                               <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Текст на Водния Знак</label>
-                              <input value={settings.watermarkText} onChange={e => setSettings({...settings, watermarkText: e.target.value})} className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                              <input value={settings.watermarkText} onChange={e => setSettings({...settings, watermarkText: e.target.value})} className="w-full bg-black/40 border border-white/10 p-4 sm:p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
                            </div>
                            <div className="space-y-4">
                               <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Позиция</label>
-                              <select value={settings.watermarkPosition} onChange={e => setSettings({...settings, watermarkPosition: e.target.value})} className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none">
+                              <select value={settings.watermarkPosition} onChange={e => setSettings({...settings, watermarkPosition: e.target.value})} className="w-full bg-black/40 border border-white/10 p-4 sm:p-5 rounded-2xl text-white outline-none">
                                 <option value="top-right">Горе Вдясно</option>
                                 <option value="top-left">Горе Вляво</option>
                               </select>
@@ -1774,11 +1780,11 @@ export default function App() {
                         </div>
                      </section>
 
-                     <section className="space-y-10 border-t border-white/5 pt-16">
-                        <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
+                     <section className="space-y-6 sm:space-y-8 lg:space-y-10 border-t border-white/5 pt-8 sm:pt-12 lg:pt-16">
+                        <h2 className="text-xl sm:text-2xl lg:text-3xl font-black mb-6 sm:mb-8 lg:mb-10 flex items-center gap-3 sm:gap-4">
                           <Layout style={{ color: settings.primaryColor }}/> Оформление на Сайта
                         </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-10">
                            <div className="space-y-4">
                               <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Показвай "В Тренда"</label>
                               <button onClick={() => setSettings({...settings, showTrending: !settings.showTrending})} className={`px-6 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${settings.showTrending !== false ? 'bg-emerald-500 text-white' : 'bg-white/5 text-slate-500 hover:bg-white/10'}`}>
@@ -1826,11 +1832,11 @@ export default function App() {
                         </div>
                      </section>
 
-                     <section className="space-y-10 border-t border-white/5 pt-16">
-                        <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
+                     <section className="space-y-6 sm:space-y-8 lg:space-y-10 border-t border-white/5 pt-8 sm:pt-12 lg:pt-16">
+                        <h2 className="text-xl sm:text-2xl lg:text-3xl font-black mb-6 sm:mb-8 lg:mb-10 flex items-center gap-3 sm:gap-4">
                           <Volume2 style={{ color: settings.primaryColor }}/> Звук и Интеракции
                         </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-10">
                            <div className="space-y-4">
                               <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Звук при Лайк</label>
                               <div className="flex items-center gap-4">
@@ -1845,8 +1851,8 @@ export default function App() {
                         </div>
                      </section>
 
-                     <section className="space-y-10 border-t border-white/5 pt-16">
-                        <h2 className="text-3xl font-black mb-10 flex items-center gap-4">
+                     <section className="space-y-6 sm:space-y-8 lg:space-y-10 border-t border-white/5 pt-8 sm:pt-12 lg:pt-16">
+                        <h2 className="text-xl sm:text-2xl lg:text-3xl font-black mb-6 sm:mb-8 lg:mb-10 flex items-center gap-3 sm:gap-4">
                           <Lock style={{ color: settings.primaryColor }}/> Смяна на Парола
                         </h2>
                         <form onSubmit={e => {
@@ -1863,18 +1869,18 @@ export default function App() {
                           addLog('Паролата е сменена успешно', 'success');
                           showToast('Паролата е сменена успешно!', 'success');
                           e.target.reset();
-                        }} className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        }} className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
                            <div className="space-y-4">
                               <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Текуща Парола</label>
-                              <input name="currentPass" type="password" required className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                              <input name="currentPass" type="password" required className="w-full bg-black/40 border border-white/10 p-4 sm:p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
                            </div>
                            <div className="space-y-4">
                               <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Нова Парола</label>
-                              <input name="newPass" type="password" required minLength={6} className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                              <input name="newPass" type="password" required minLength={6} className="w-full bg-black/40 border border-white/10 p-4 sm:p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
                            </div>
                            <div className="space-y-4">
                               <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Потвърди Паролата</label>
-                              <input name="confirmPass" type="password" required minLength={6} className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                              <input name="confirmPass" type="password" required minLength={6} className="w-full bg-black/40 border border-white/10 p-4 sm:p-5 rounded-2xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
                            </div>
                            <div className="md:col-span-3">
                               <button type="submit" className="px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-sm text-white hover:scale-[1.02] active:scale-95 transition-all shadow-lg" style={{ backgroundColor: settings.primaryColor }}>
@@ -1887,9 +1893,9 @@ export default function App() {
                )}
 
                {adminTab === 'inquiries' && (
-                  <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-white/5 shadow-3xl space-y-10">
+                  <div className="bg-slate-900 p-4 sm:p-7 lg:p-12 rounded-[1.5rem] sm:rounded-[2.5rem] lg:rounded-[3.5rem] border border-white/5 shadow-3xl space-y-6 sm:space-y-8 lg:space-y-10">
                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <h2 className="text-3xl font-black text-white flex items-center gap-4">
+                        <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-white flex items-center gap-3 sm:gap-4">
                           <MessageSquare style={{ color: settings.primaryColor }} /> Входяща Кутия
                         </h2>
                         <div className="flex items-center gap-3">
@@ -1917,14 +1923,14 @@ export default function App() {
                      ) : (
                         <div className="grid grid-cols-1 gap-6">
                            {inquiries.map(inq => (
-                              <div key={inq.id} className={`border p-10 rounded-[2.5rem] hover:border-white/20 transition-all shadow-xl ${!inq.status || inq.status === 'unread' ? 'bg-black/40 border-white/10' : 'bg-black/20 border-white/5'}`}>
-                                 <div className="flex justify-between items-start mb-8">
-                                    <div className="flex gap-5 items-center">
-                                       <div className={`w-16 h-16 rounded-3xl flex items-center justify-center font-black text-2xl text-white ${!inq.status || inq.status === 'unread' ? 'bg-slate-700' : 'bg-slate-800'}`}>
+                              <div key={inq.id} className={`border p-4 sm:p-6 lg:p-10 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] hover:border-white/20 transition-all shadow-xl ${!inq.status || inq.status === 'unread' ? 'bg-black/40 border-white/10' : 'bg-black/20 border-white/5'}`}>
+                                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4 sm:gap-0 mb-4 sm:mb-6 lg:mb-8">
+                                    <div className="flex gap-3 sm:gap-4 lg:gap-5 items-center">
+                                       <div className={`w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-2xl sm:rounded-3xl flex items-center justify-center font-black text-xl sm:text-2xl text-white flex-shrink-0 ${!inq.status || inq.status === 'unread' ? 'bg-slate-700' : 'bg-slate-800'}`}>
                                           {inq.name[0]}
                                        </div>
                                        <div>
-                                          <h4 className="text-xl font-black text-white flex items-center gap-3">
+                                          <h4 className="text-base sm:text-lg lg:text-xl font-black text-white flex items-center gap-2 sm:gap-3">
                                             {inq.name}
                                             {(!inq.status || inq.status === 'unread') && <span className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0"/>}
                                           </h4>
@@ -1944,7 +1950,7 @@ export default function App() {
                                           </div>
                                        </div>
                                     </div>
-                                    <div className="flex flex-col items-end gap-3">
+                                    <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 sm:gap-3 self-end sm:self-auto">
                                        <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{inq.date}</span>
                                        <div className="flex items-center gap-2">
                                          <select value={inq.status || 'unread'} onChange={e => setInquiries(prev => prev.map(x => x.id === inq.id ? {...x, status: e.target.value} : x))}
@@ -1959,7 +1965,7 @@ export default function App() {
                                        </div>
                                     </div>
                                  </div>
-                                 <div className="bg-slate-950/50 p-8 rounded-3xl text-slate-300 leading-relaxed font-medium italic border border-white/5">
+                                 <div className="bg-slate-950/50 p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl text-slate-300 text-sm sm:text-base leading-relaxed font-medium italic border border-white/5">
                                     "{inq.message}"
                                  </div>
                               </div>
@@ -1970,13 +1976,13 @@ export default function App() {
                )}
 
                {adminTab === 'texts' && (
-                  <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-white/5 shadow-3xl space-y-12 text-white">
-                      <h2 className="text-3xl font-black flex items-center gap-4">
+                  <div className="bg-slate-900 p-4 sm:p-7 lg:p-12 rounded-[1.5rem] sm:rounded-[2.5rem] lg:rounded-[3.5rem] border border-white/5 shadow-3xl space-y-6 sm:space-y-8 lg:space-y-12 text-white">
+                      <h2 className="text-xl sm:text-2xl lg:text-3xl font-black flex items-center gap-3 sm:gap-4">
                         <Type style={{ color: settings.primaryColor }}/> Управление на Текстове
                       </h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-10">
                          {Object.keys(settings.texts).map(key => (
-                            <div key={key} className="space-y-4 p-8 bg-black/40 rounded-[2.5rem] border border-white/5 hover:border-white/10 transition-all">
+                            <div key={key} className="space-y-3 sm:space-y-4 p-4 sm:p-6 lg:p-8 bg-black/40 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] border border-white/5 hover:border-white/10 transition-all">
                                <label className="text-[11px] uppercase font-black text-slate-500 ml-2 tracking-[0.2em]">{key.replace(/([A-Z])/g, ' $1')}</label>
                                <textarea 
                                   value={settings.texts[key]} 
@@ -1995,9 +2001,9 @@ export default function App() {
                )}
 
                {adminTab === 'logs' && (
-                  <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-white/5 shadow-3xl h-[800px] overflow-hidden flex flex-col text-white">
-                     <div className="flex justify-between items-center mb-10">
-                        <h2 className="text-3xl font-black flex items-center gap-4">
+                  <div className="bg-slate-900 p-4 sm:p-7 lg:p-12 rounded-[1.5rem] sm:rounded-[2.5rem] lg:rounded-[3.5rem] border border-white/5 shadow-3xl h-[600px] sm:h-[700px] lg:h-[800px] overflow-hidden flex flex-col text-white">
+                     <div className="flex justify-between items-center mb-6 sm:mb-8 lg:mb-10">
+                        <h2 className="text-xl sm:text-2xl lg:text-3xl font-black flex items-center gap-3 sm:gap-4">
                           <Activity style={{ color: settings.primaryColor }}/> Системни Логове
                         </h2>
                         <button onClick={() => setActivityLog([])} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-500 transition-colors">Изчисти всички</button>
@@ -2022,8 +2028,8 @@ export default function App() {
                )}
 
                {adminTab === 'collections' && (
-                 <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-white/5 shadow-3xl space-y-12">
-                    <h2 className="text-3xl font-black text-white flex items-center gap-4">
+                 <div className="bg-slate-900 p-4 sm:p-7 lg:p-12 rounded-[1.5rem] sm:rounded-[2.5rem] lg:rounded-[3.5rem] border border-white/5 shadow-3xl space-y-6 sm:space-y-8 lg:space-y-12">
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-white flex items-center gap-3 sm:gap-4">
                       <Layers style={{ color: settings.primaryColor }} /> Управление на Колекции
                     </h2>
                     
@@ -2041,7 +2047,7 @@ export default function App() {
                         showToast("Колекцията е създадена!", "success");
                       }
                       e.target.reset();
-                    }} className="space-y-8 bg-black/40 p-10 rounded-[3rem] border border-white/5">
+                    }} className="space-y-4 sm:space-y-6 lg:space-y-8 bg-black/40 p-4 sm:p-6 lg:p-10 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[3rem] border border-white/5">
                        {editingCollection && (
                          <div className="flex items-center justify-between bg-slate-800/50 p-4 rounded-2xl border border-white/10">
                            <span className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2"><Edit size={16} style={{ color: settings.primaryColor }}/> Редактиране: {editingCollection.title}</span>
@@ -2051,7 +2057,7 @@ export default function App() {
                        <div className="grid md:grid-cols-2 gap-8">
                           <div className="space-y-2">
                             <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Име на Колекцията</label>
-                            <input name="title" required placeholder="напр. Класически Анимации" defaultValue={editingCollection?.title || ''} key={editingCollection?.id || 'new'} className="w-full bg-slate-950 border border-white/5 p-6 rounded-3xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
+                            <input name="title" required placeholder="напр. Класически Анимации" defaultValue={editingCollection?.title || ''} key={editingCollection?.id || 'new'} className="w-full bg-slate-950 border border-white/5 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none focus:ring-2" style={{'--tw-ring-color': settings.primaryColor}}/>
                           </div>
                           <div className="space-y-2">
                             <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Избери Видеа (Shift+Click)</label>
@@ -2062,23 +2068,23 @@ export default function App() {
                        </div>
                        <div className="space-y-2">
                          <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Описание</label>
-                         <textarea name="desc" placeholder="Кратко представяне на колекцията..." defaultValue={editingCollection?.description || ''} key={(editingCollection?.id || 'new') + '-desc'} className="w-full bg-slate-950 border border-white/5 p-6 rounded-3xl text-white outline-none h-32 resize-none"/>
+                         <textarea name="desc" placeholder="Кратко представяне на колекцията..." defaultValue={editingCollection?.description || ''} key={(editingCollection?.id || 'new') + '-desc'} className="w-full bg-slate-950 border border-white/5 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl text-white outline-none h-32 resize-none"/>
                        </div>
-                       <div className="flex gap-4">
-                         <button type="submit" className="flex-1 py-7 text-white font-black rounded-3xl uppercase tracking-[0.3em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all" style={{ backgroundColor: settings.primaryColor }}>
+                       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                         <button type="submit" className="flex-1 py-5 sm:py-6 lg:py-7 text-white font-black rounded-2xl sm:rounded-3xl uppercase tracking-[0.15em] sm:tracking-[0.3em] text-sm sm:text-base shadow-2xl hover:scale-[1.02] active:scale-95 transition-all" style={{ backgroundColor: settings.primaryColor }}>
                             {editingCollection ? 'ЗАПАЗИ ПРОМЕНИТЕ' : 'СЪЗДАЙ КОЛЕКЦИЯ'}
                          </button>
                          {editingCollection && (
-                           <button type="button" onClick={() => setEditingCollection(null)} className="px-10 py-7 text-slate-400 font-black rounded-3xl uppercase tracking-[0.3em] border border-white/10 hover:bg-slate-800 transition-all">
+                           <button type="button" onClick={() => setEditingCollection(null)} className="px-6 sm:px-10 py-5 sm:py-6 lg:py-7 text-slate-400 font-black rounded-2xl sm:rounded-3xl uppercase tracking-[0.15em] sm:tracking-[0.3em] text-sm sm:text-base border border-white/10 hover:bg-slate-800 transition-all">
                              ОТКАЗ
                            </button>
                          )}
                        </div>
                     </form>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                        {collections.map(col => (
-                          <div key={col.id} className="p-8 bg-black/20 rounded-[2.5rem] border border-white/5 flex flex-col justify-between group">
+                          <div key={col.id} className="p-4 sm:p-6 lg:p-8 bg-black/20 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] border border-white/5 flex flex-col justify-between group">
                              <div>
                                 <div className="flex justify-between items-start mb-4">
                                    <h4 className="text-xl font-black text-white uppercase group-hover:text-red-500 transition-all">{col.title}</h4>
@@ -2118,14 +2124,14 @@ export default function App() {
         )}
       </main>
 
-      <footer className="py-32 border-t border-white/5 px-10 mt-32 bg-slate-950/20 text-center relative overflow-hidden">
+      <footer className="py-16 sm:py-20 lg:py-32 border-t border-white/5 px-4 sm:px-6 lg:px-10 mt-16 sm:mt-20 lg:mt-32 bg-slate-950/20 text-center relative overflow-hidden">
         <div className="max-w-4xl mx-auto relative z-10">
           <div className="w-20 h-1 bg-gradient-to-r from-transparent via-red-600 to-transparent mx-auto mb-10 opacity-50" style={{ backgroundImage: `linear-gradient(to right, transparent, ${settings.primaryColor}, transparent)` }} />
-          <h3 className="text-5xl font-black text-white tracking-tighter mb-6">{settings.siteName}</h3>
-          <p className="text-slate-500 text-lg font-medium leading-relaxed mb-12 max-w-2xl mx-auto">
+          <h3 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tighter mb-4 sm:mb-6">{settings.siteName}</h3>
+          <p className="text-slate-500 text-sm sm:text-base lg:text-lg font-medium leading-relaxed mb-8 sm:mb-10 lg:mb-12 max-w-2xl mx-auto">
             {settings.texts.footerDescription}
           </p>
-          <div className="flex justify-center gap-10 mb-16">
+          <div className="flex justify-center gap-6 sm:gap-8 lg:gap-10 mb-8 sm:mb-12 lg:mb-16">
              <button className="text-slate-600 hover:text-white transition-colors"><Monitor size={24}/></button>
              <button className="text-slate-600 hover:text-white transition-colors"><Tablet size={24}/></button>
              <button className="text-slate-600 hover:text-white transition-colors"><Smartphone size={24}/></button>
